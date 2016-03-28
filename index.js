@@ -1,75 +1,144 @@
 'use strict';
-var Promise = require('bluebird')
-var branchesConstructor = require('./branches')
-var Browser = require('./browser')
+require('loadenv')()
+
+const Promise = require('bluebird')
+const Runnable = require('@runnable/api-client')
+const uuid = require('uuid')
 require('string.prototype.includes');
 
-var token = process.env.AUTH_TOKEN || 'c3031013be7b9543dcb36b92ec2885fae4e63714'
-var repoPath = process.env.REPO_PATH || 'Runnable/nightmare'
-var sha = process.env.REPO_SHA || '8745fb0b5eebab8a1f578ae03401595cdc4849c0'
-var host = process.env.HOST || 'https://runnable-beta.com/'
-var LIMIT = process.env.LIMIT || 20
+const accessToken = process.env.AUTH_TOKEN || '9ba122889b562c9e407d85e3203de3cbdf49578d'
+const API_URL = process.env.API_URL || 'https://api.runnable-gamma.com'
+const GITHUB_USERNAME = 'Runnable'
+const GITHUB_REPO_NAME = 'hello-node-rethinkdb'
+const GITHUB_OAUTH_ID = 2828361 // Runnable
 
-var branches = branchesConstructor({
-  token: token,
-  repoPath: repoPath,
-  sha: sha,
-  LIMIT: LIMIT
+let client
+let context
+let contextVersion
+let build
+let githubOrg
+let githubRepo
+let githubBranch
+let appCodeVersion
+let instance
+
+before((done) => {
+  client = Promise.promisifyAll(new Runnable(API_URL))
+  client.githubLoginAsync(accessToken)
+    .asCallback(done)
 })
-var log = function (...args) {
-  console.log.apply(console, [new Date() + ': '].concat(args));
-}
-var startCreatingBranchesTime;
-var finishCreatingBranchesTime;
 
-before(() => {
-
-})
-
-before(() => {
-
+after((done) => {
+  client.logout(done)
 })
 
 describe('New Repository Containers', () => {
 
   describe('Create A Container', () => {
-    before(() => {
 
+    it('should create a context', (done) => {
+      client.createContextAsync({
+        name: uuid.v4(),
+        'owner.github': GITHUB_OAUTH_ID,
+        owner: {
+          github: GITHUB_OAUTH_ID
+        }
+      })
+      .then((contextData) => {
+        context = Promise.promisifyAll(client.newContext(contextData))
+      })
+      .asCallback(done)
     })
 
-    it('should create the container', () => {
+    it('should create a context version', (done) => {
+      return context.createVersionAsync({})
+        .then((contextVersionData) => {
+          contextVersion = Promise.promisifyAll(context.newVersion(contextVersionData))
+          return contextVersion.fetchAsync()
+        })
+        .asCallback(done)
+    })
 
+    it('should create a build for a context version', (done) => {
+      return client.createBuildAsync({
+        contextVersions: [contextVersion.id()],
+        owner: {
+          github: GITHUB_OAUTH_ID
+        }
+      })
+      .then((buildData) => {
+        build = Promise.promisifyAll(client.newBuild(buildData))
+        return build.fetchAsync()
+      })
+      .asCallback(done)
+    })
+
+    it('should create a github org', () => {
+      githubOrg = Promise.promisifyAll(client.newGithubOrg(GITHUB_USERNAME))
+      // return githubOrg.fetchAsync()
+        // .asCallback(done)
+    })
+
+    it('should fetch a github branch', (done) => {
+      return githubOrg.fetchRepoAsync(GITHUB_REPO_NAME, {
+        headers: {
+          'User-Agent': 'runnable-integration-test'
+        }
+      })
+        .then((_githubRepo) => {
+          githubRepo = Promise.promisifyAll(client.newGithubRepo(_githubRepo))
+        })
+        .asCallback(done)
+    })
+
+    it('should fetch a github repo branch', (done) => {
+      return githubRepo.fetchBranchAsync('master', {
+        headers: {
+          'User-Agent': 'runnable-integration-test'
+        }
+      })
+        .then((_branch) => {
+          githubBranch = _branch
+        })
+        .asCallback(done)
+    })
+
+    it('should create an AppCodeVersion', (done) => {
+      return contextVersion.createAppCodeVersionAsync({
+        repo: githubRepo.attrs.full_name,
+        branch: githubBranch.name,
+        commit: githubBranch.commit.sha
+      })
+      .then((acv) => {
+        appCodeVersion = acv
+      })
+      .asCallback(done)
+    })
+
+    it('should build the build', (done) => {
+      return build.buildAsync({
+        message: 'Initial Build'
+      })
+        .asCallback(done)
+    })
+
+    it('should create an instance', (done) => {
+      return client.createInstanceAsync({
+        masterPod: true,
+        name: GITHUB_REPO_NAME,
+        env: [],
+        ipWhitelist: {
+          enabled: false
+        },
+        owner: {
+          github: GITHUB_OAUTH_ID
+        },
+        build: build.id()
+      })
+        .then((instance) => {
+          console.log('Instance', instance)
+        })
+        .asCallback(done)
     })
   })
-
 })
-
-if (process.argv[1].includes('index.js') && process.argv[2].includes('--test')) {
-  var browser = new Browser({
-    host: host
-  });
-  log('Attempt login to Runnable', token)
-  browser.setup()
-    .then(() => {
-      console.log('LoginToRunnable')
-      return browser.loginToRunnable(token)
-    })
-    .then(() => {
-       console.log('REFRSkkkH')
-      return browser.refresh()
-    })
-    .then(() => {
-      console.log('Logged In')
-      return browser.alertConfigAPIHost()
-    })
-
-    function exitHandler (a, b, c) {
-      console.log('Exit Handler', a, b, c)
-      browser.close()
-      process.exit()
-    }
-
-  process.on('exit', exitHandler.bind(null,{cleanup:true}));
-  process.on('SIGINT', exitHandler.bind(null, {exit:true}));
-  process.on('uncaughtException', exitHandler.bind(null, {exit:true}));
-}
