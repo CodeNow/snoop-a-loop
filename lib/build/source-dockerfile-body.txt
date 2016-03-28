@@ -1,0 +1,20 @@
+# Full list of versions available here: https://registry.hub.docker.com/_/node/tags/manage/\n' +
+FROM node:4.2.3
+
+# Add repository files to container
+
+ENV PORT=80
+
+#Start: Main Repository
+ADD ["./GITHUB_REPO_NAME", "/GITHUB_REPO_NAME"]
+WORKDIR /GITHUB_REPO_NAME
+RUN npm install
+#End
+
+WORKDIR /GITHUB_REPO_NAME
+
+# Open up ports on the container
+EXPOSE 80
+
+# Command to start the app
+CMD npm start
