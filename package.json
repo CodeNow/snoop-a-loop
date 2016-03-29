@@ -4,9 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node index.js --test",
-    "create": "node index.js --create",
-    "delete": "node index.js --delete"
+    "test": "./node_modules/mocha/bin/mocha -t 5000 -b index.js",
+    "start": "./node_modules/mocha/bin/mocha -t 5000 -b index.js"
   },
   "author": "",
   "license": "ISC",

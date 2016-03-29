@@ -9,26 +9,13 @@ const fs = require('fs')
 const dockerfileBody = fs.readFileSync('./lib/build/source-dockerfile-body.txt').toString()
 require('string.prototype.includes');
 
-const accessToken = process.env.AUTH_TOKEN || '9ba122889b562c9e407d85e3203de3cbdf49578d'
-const API_URL = process.env.API_URL || 'https://api.runnable-gamma.com'
+const accessToken = process.env.AUTH_TOKEN || '6d0e7de3c05331ba4dc15d3e3067b55c990a4fdf'
+const API_URL = process.env.API_URL || 'https://api.runnable-beta.com'
 const GITHUB_USERNAME = 'Runnable'
 const GITHUB_REPO_NAME = 'hello-node-rethinkdb'
 const GITHUB_OAUTH_ID = 2828361 // Runnable
 
 let client
-let githubOrg
-let githubRepo
-let githubBranch
-let sourceContext
-let sourceContextVersion
-let sourceInfraCodeVersion
-let context
-let contextVersion
-let contextVersionDockerfile
-let build
-let appCodeVersion
-let instance
-
 const reqOpts = {
   headers: {
     'User-Agent': 'runnable-integration-test'
@@ -37,7 +24,7 @@ const reqOpts = {
 
 before((done) => {
   client = Promise.promisifyAll(new Runnable(API_URL))
-  client.githubLoginAsync(accessToken)
+  return client.githubLoginAsync(accessToken)
     .asCallback(done)
 })
 
@@ -45,10 +32,90 @@ after((done) => {
   client.logout(done)
 })
 
+describe('New Service Containers', () => {
+  let sourceInstance
+  let contextVersion
+  let build
+  let instance
+
+  it('should fetch all template containers', (done) => {
+    return client.fetchInstancesAsync({ githubUsername: 'HelloRunnable' })
+      .then((instancesData) => {
+        let instanceData = instancesData.filter((x) => x.name === 'RethinkDB')[0]
+        sourceInstance = Promise.promisifyAll(client.newInstance(instanceData))
+      })
+      .asCallback(done)
+  })
+
+  it('should copy the source instance', (done) => {
+    sourceInstance.contextVersion = Promise.promisifyAll(sourceInstance.contextVersion)
+    return sourceInstance.contextVersion.deepCopyAsync({
+      owner: {
+        github: GITHUB_OAUTH_ID
+      }
+    })
+      .then((versionData) => {
+        let context = client.newContext({ _id: '999' })
+        contextVersion = Promise.promisifyAll(context.newVersion(versionData));
+      })
+      .asCallback(done)
+  })
+
+  it('should create the build', (done) => {
+    return client.createBuildAsync({
+      contextVersions: [contextVersion.id()],
+      owner: {
+        github: GITHUB_OAUTH_ID
+      }
+    })
+      .then((buildData) => {
+        build = Promise.promisifyAll(client.newBuild(buildData))
+      })
+      .asCallback(done)
+  })
+
+  it('should build the build', (done) => {
+    return build.buildAsync({
+      message: 'Initial Build'
+    })
+      .asCallback(done)
+  })
+
+  it('should create an instance', (done) => {
+    return client.createInstanceAsync({
+      masterPod: true,
+      name: 'RethinkDB7',
+      env: [],
+      ipWhitelist: {
+        enabled: false
+      },
+      owner: {
+        github: GITHUB_OAUTH_ID
+      },
+      build: build.id()
+    })
+      .then((instanceData) => {
+        instance = Promise.promisifyAll(client.newInstance(instanceData))
+      })
+      .asCallback(done)
+  })
+})
+
 describe('New Repository Containers', () => {
+  let githubOrg
+  let githubRepo
+  let githubBranch
+  let sourceContext
+  let sourceContextVersion
+  let sourceInfraCodeVersion
+  let context
+  let contextVersion
+  let contextVersionDockerfile
+  let build
+  let appCodeVersion
+  let instance
 
   describe('Create A Container', () => {
-
     describe('Github', () => {
       it('should create a github org', () => {
         githubOrg = Promise.promisifyAll(client.newGithubOrg(GITHUB_USERNAME))
