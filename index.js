@@ -11,7 +11,6 @@ const keypather = require('keypather')()
 const dockerfileBody = fs.readFileSync('./lib/build/source-dockerfile-body.txt').toString()
 const socketUtils = require('./lib/socket/utils.js')
 const PrimusClient = require('@runnable/api-client/lib/external/primus-client')
-const dockerStreamCleanser = require('docker-stream-cleanser')
 require('string.prototype.includes');
 
 const accessToken = process.env.AUTH_TOKEN || '6d0e7de3c05331ba4dc15d3e3067b55c990a4fdf'
@@ -32,6 +31,7 @@ const USER_CONTENT_DOMAIN = process.env.USER_CONTENT_DOMAIN || userContentDomain
 let client
 let nonRepoContainer
 let repoContainer
+let build
 
 const reqOpts = {
   headers: {
@@ -152,60 +152,14 @@ describe('1. New Service Containers', () => {
   })
 
   it('should get logs for that container', (done) => {
+    // TODO: Improve test to test only build logs
     let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
-    let testBuildLogs = Promise.method(() => {
-      let uniqueId = uuid.v4()
-      let buildStream = socket.substream(uniqueId)
-      return new Promise((resolve) => {
-        buildStream.on('data', (data) => {
-          if (!Array.isArray(data)) {
-            data = [data]
-          }
-          data.forEach((message) => {
-            if (message.type === 'log' && message.content.indexOf('Build completed') > -1) {
-              resolve()
-            }
-          })
-        })
-        socket.write({
-          id: 1,
-          event: 'build-stream',
-          data: {
-            id: nonRepoContainer.attrs.contextVersion.id,
-            streamId: uniqueId
-          }
-        })
-      })
-    })
     let container = nonRepoContainer.attrs.container
-    let testCmdLogs = Promise.method(() => {
-      let substream = socket.substream(container.dockerContainer)
-      return new Promise((resolve) => {
-        let streamCleanser = dockerStreamCleanser('hex', true)
-        substream.pipe(streamCleanser)
-
-        // Handle data!
-        streamCleanser.on('data', (data) => {
-          let stringData = data.toString()
-          if (stringData.match(/running.*rethinkdb/i) !== null) {
-            resolve()
-          }
-        })
-        // Initialize the log-stream
-        socket.write({
-          id: 1,
-          event: 'log-stream',
-          data: {
-            substreamId: container.dockerContainer,
-            dockHost: container.dockerHost,
-            containerId: container.dockerContainer
-          }
-        })
-      })
-    })
+    let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, nonRepoContainer.attrs.contextVersion.id)
+    let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /running.*rethinkdb/i)
     return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
       .asCallback(done)
-  }).timeout(10000)
+  })
 
   it('should be succsefully built', (done) => {
     let statusCheck = () => {
@@ -215,67 +169,33 @@ describe('1. New Service Containers', () => {
         .then(() => statusCheck())
     }
     return statusCheck()
-  }).timeout(10000)
+  })
 
   it('should have a working terminal', (done) => {
     let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
     let container = nonRepoContainer.attrs.container
-    let testTerminal = Promise.method(() => {
-      let uniqueId = uuid.v4()
-      let terminalStream = socket.substream(uniqueId)
-
-      return new Promise((resolve, reject) => {
-        socket.on('data', (data) => {
-          if (data.event === 'TERMINAL_STREAM_CREATED') {
-            terminalStream.write('sleep 1 && ping -c 1 localhost\n')
-          }
-        })
-        terminalStream.on('end', () => {
-          reject(new Error('Terminal substream killed'))
-        })
-        terminalStream.on('data', (data) => {
-          if (data.indexOf('from 127.0.0.1') > -1) {
-            resolve()
-          }
-        })
-        socket.write({
-          id: 1,
-          event: 'terminal-stream',
-          data: {
-            dockHost: container.dockerHost,
-            type: 'filibuster',
-            isDebugContainer: false,
-            containerId: container.dockerContainer,
-            terminalStreamId: uniqueId,
-            eventStreamId: uniqueId + 'events'
-          }
-        })
-      })
-    })
+    let testTerminal = socketUtils.createTestTerminal(socket, container)
     return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
       .asCallback(done)
   })
 })
 
-xdescribe('2. New Repository Containers', () => {
-let githubOrg
-let githubRepo
-let githubBranch
+describe('2. New Repository Containers', () => {
+  let githubOrg
+  let githubRepo
+  let githubBranch
   let sourceContext
   let sourceContextVersion
   let sourceInfraCodeVersion
   let context
   let contextVersion
   let contextVersionDockerfile
-  let build
   let appCodeVersion
 
   describe('Create A Container', () => {
     describe('Github', () => {
       it('should create a github org', () => {
         githubOrg = Promise.promisifyAll(client.newGithubOrg(GITHUB_USERNAME))
-        // return githubOrg.fetchAsync()
-          // .asCallback(done)
       })
 
       it('should fetch a github branch', (done) => {
@@ -421,6 +341,7 @@ let githubBranch
         })
           .then((instanceData) => {
             repoContainer = Promise.promisifyAll(client.newInstance(instanceData))
+            return repoContainer.fetchAsync()
           })
           .asCallback(done)
       })
@@ -428,20 +349,107 @@ let githubBranch
   })
 
   describe('Working Container', () => {
-    xit('should get logs for that container', (done) => {
-
+    it('should get logs for that container', (done) => {
+      // TODO: Improve test to test only build logs
+      let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
+      let container = repoContainer.attrs.container
+      let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, repoContainer.attrs.contextVersion.id)
+      let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
+      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
+        .asCallback(done)
     })
 
-    xit('should be succsefully built', (done) => {
-
+    it('should be succsefully built', (done) => {
+      let statusCheck = () => {
+        if (repoContainer.status() === 'running') return done()
+        repoContainer.fetchAsync()
+        return delay(500)
+          .then(() => statusCheck())
+      }
+      return statusCheck()
     })
 
-    xit('should have a working terminal', (done) => {
+    it('should have a working terminal', (done) => {
+      let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
+      let container = repoContainer.attrs.container
+      let testTerminal = socketUtils.createTestTerminal(socket, container)
+      return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+        .asCallback(done)
     })
   })
-})
+ })
 
-xdescribe('3. Rebuild Repo Container', () => {
+describe('3. Rebuild Repo Container', () => {
+  let newBuild
+  describe('Rebuilding without Cache', () => {
+    it('should deep copy the build', (done) => {
+      return build.deepCopyAsync()
+        .then((newBuildData) => {
+          newBuild = Promise.promisifyAll(client.newBuild(newBuildData))
+          return newBuild.fetchAsync()
+        })
+        .asCallback(done)
+    })
+
+    it('should rebuild the instance without cache', (done) => {
+      return newBuild.buildAsync({
+        message: 'Manual build',
+        noCache: true
+      })
+        .then((newBuildData) => {
+          newBuild = Promise.promisifyAll(client.newBuild(newBuildData))
+          return repoContainer.updateAsync({
+            build: newBuild.id()
+          })
+        })
+        .then(() => {
+          return repoContainer.fetchAsync()
+        })
+        .asCallback(done)
+    })
+  })
+
+  describe('Working Container', () => {
+    it('should have a container', (done) => {
+      // NOTE: Is there a better way of doing this?
+      let containerCheck = () => {
+        if (repoContainer.attrs.container) return done()
+        repoContainer.fetchAsync()
+        return delay(500)
+          .then(() => containerCheck())
+      }
+      return containerCheck()
+    })
+
+    it('should get logs for that container', (done) => {
+      // TODO: Improve test to test only build logs
+      let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
+      let container = repoContainer.attrs.container
+      let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, repoContainer.attrs.contextVersion.id)
+      let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
+      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
+        .asCallback(done)
+    })
+
+    it('should be succsefully built', (done) => {
+      let statusCheck = () => {
+        if (repoContainer.status() === 'running') return done()
+        repoContainer.fetchAsync()
+        return delay(500)
+          .then(() => statusCheck())
+      }
+      return statusCheck()
+    })
+
+    it('should have a working terminal', (done) => {
+      let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
+      let container = repoContainer.attrs.container
+      let testTerminal = socketUtils.createTestTerminal(socket, container)
+      return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+        .asCallback(done)
+    })
+  })
+
 })
 
 xdescribe('4. Github Webhooks', () => {

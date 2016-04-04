@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "./node_modules/mocha/bin/mocha -t 5000 -b index.js",
-    "start": "./node_modules/mocha/bin/mocha -t 5000 -b index.js"
+    "test": "npm start",
+    "start": "./node_modules/mocha/bin/mocha -t 10000 -b index.js"
   },
   "author": "",
   "license": "ISC",
