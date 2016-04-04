@@ -4,8 +4,10 @@ require('loadenv')()
 const Promise = require('bluebird')
 const Runnable = require('@runnable/api-client')
 const uuid = require('uuid')
+const delay = require('delay')
 const objectId = require('objectid')
 const fs = require('fs')
+const keypather = require('keypather')()
 const dockerfileBody = fs.readFileSync('./lib/build/source-dockerfile-body.txt').toString()
 const socketUtils = require('./lib/socket/utils.js')
 const PrimusClient = require('@runnable/api-client/lib/external/primus-client')
@@ -150,35 +152,21 @@ describe('1. New Service Containers', () => {
   })
 
   it('should get logs for that container', (done) => {
-    console.log('NonRepoContainer Status', nonRepoContainer.status())
-    // let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
-    let socket = new PrimusClient(API_SOCKET_SERVER, {
-      transport: {
-        headers: {
-          cookie: 'connect.sid=' + client.connectSid
-        }
-      }
-    })
-
+    let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
     let testBuildLogs = Promise.method(() => {
       let uniqueId = uuid.v4()
       let buildStream = socket.substream(uniqueId)
-      console.log('START 0', buildStream, uniqueId)
       return new Promise((resolve) => {
-        console.log('START 1')
         buildStream.on('data', (data) => {
-          console.log('data', data)
           if (!Array.isArray(data)) {
             data = [data]
           }
           data.forEach((message) => {
-            console.log('Message', message)
             if (message.type === 'log' && message.content.indexOf('Build completed') > -1) {
               resolve()
             }
           })
         })
-        console.log('write', nonRepoContainer.attrs.contextVersion.id)
         socket.write({
           id: 1,
           event: 'build-stream',
@@ -189,23 +177,21 @@ describe('1. New Service Containers', () => {
         })
       })
     })
-    var container = nonRepoContainer.attrs.container
-    var testCmdLogs = Promise.method(() => {
-      var substream = socket.substream(container.dockerContainer)
+    let container = nonRepoContainer.attrs.container
+    let testCmdLogs = Promise.method(() => {
+      let substream = socket.substream(container.dockerContainer)
       return new Promise((resolve) => {
-        var streamCleanser = dockerStreamCleanser('hex', true)
+        let streamCleanser = dockerStreamCleanser('hex', true)
         substream.pipe(streamCleanser)
 
         // Handle data!
         streamCleanser.on('data', (data) => {
-          console.log('streamCleanser', data)
-          var stringData = data.toString()
-          if (stringData.indexOf('Server running') > -1) {
+          let stringData = data.toString()
+          if (stringData.match(/running.*rethinkdb/i) !== null) {
             resolve()
           }
         })
         // Initialize the log-stream
-        console.log('WRITE')
         socket.write({
           id: 1,
           event: 'log-stream',
@@ -219,22 +205,62 @@ describe('1. New Service Containers', () => {
     })
     return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
       .asCallback(done)
-  })//.timeout(20000)
+  }).timeout(10000)
 
   it('should be succsefully built', (done) => {
-    nonRepoContainer.on('update', () => console.log('Update:'))
-    if (nonRepoContainer.status() === 'running') return done()
-  })
+    let statusCheck = () => {
+      if (nonRepoContainer.status() === 'running') return done()
+      nonRepoContainer.fetchAsync()
+      return delay(500)
+        .then(() => statusCheck())
+    }
+    return statusCheck()
+  }).timeout(10000)
 
-  xit('should have a working terminal', (done) => {
+  it('should have a working terminal', (done) => {
+    let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
+    let container = nonRepoContainer.attrs.container
+    let testTerminal = Promise.method(() => {
+      let uniqueId = uuid.v4()
+      let terminalStream = socket.substream(uniqueId)
 
+      return new Promise((resolve, reject) => {
+        socket.on('data', (data) => {
+          if (data.event === 'TERMINAL_STREAM_CREATED') {
+            terminalStream.write('sleep 1 && ping -c 1 localhost\n')
+          }
+        })
+        terminalStream.on('end', () => {
+          reject(new Error('Terminal substream killed'))
+        })
+        terminalStream.on('data', (data) => {
+          if (data.indexOf('from 127.0.0.1') > -1) {
+            resolve()
+          }
+        })
+        socket.write({
+          id: 1,
+          event: 'terminal-stream',
+          data: {
+            dockHost: container.dockerHost,
+            type: 'filibuster',
+            isDebugContainer: false,
+            containerId: container.dockerContainer,
+            terminalStreamId: uniqueId,
+            eventStreamId: uniqueId + 'events'
+          }
+        })
+      })
+    })
+    return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+      .asCallback(done)
   })
 })
 
 xdescribe('2. New Repository Containers', () => {
-  let githubOrg
-  let githubRepo
-  let githubBranch
+let githubOrg
+let githubRepo
+let githubBranch
   let sourceContext
   let sourceContextVersion
   let sourceInfraCodeVersion
