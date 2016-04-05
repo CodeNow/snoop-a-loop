@@ -186,7 +186,7 @@ describe('1. New Service Containers', () => {
   it('should have a working terminal', (done) => {
     let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
     let container = serviceInstance.attrs.container
-    let testTerminal = socketUtils.createTestTerminal(socket, container)
+    let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
     return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
       .asCallback(done)
   })
@@ -384,7 +384,7 @@ describe('2. New Repository Containers', () => {
     it('should have a working terminal', (done) => {
       let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
       let container = repoInstance.attrs.container
-      let testTerminal = socketUtils.createTestTerminal(socket, container)
+      let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
         .asCallback(done)
     })
@@ -456,7 +456,7 @@ describe('3. Rebuild Repo Container', () => {
     it('should have a working terminal', (done) => {
       let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
       let container = repoInstance.attrs.container
-      let testTerminal = socketUtils.createTestTerminal(socket, container)
+      let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n')
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
         .asCallback(done)
     })
@@ -570,7 +570,7 @@ describe('4. Github Webhooks', () => {
     it('should have a working terminal', (done) => {
       let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
       let container = repoBranchInstance.attrs.container
-      let testTerminal = socketUtils.createTestTerminal(socket, container)
+      let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
         .asCallback(done)
     })
@@ -579,21 +579,21 @@ describe('4. Github Webhooks', () => {
 
 xdescribe('5. Container To Container DNS', () => {
   describe('Repo Instance', () => {
-    it('should connect to the service container from the master branch' () => {
+    it('should connect to the service container from the master branch', () => {
 
     })
 
-    it('should connect to the service container from the created branch' () => {
+    it('should connect to the service container from the created branch', () => {
 
     })
   })
 
   xdescribe('Service Instance', () => {
-    it('should connect to the master branch repo instance' () => {
+    it('should connect to the master branch repo instance', () => {
 
     })
 
-    it('should connect to the creaated branch repo instance' () => {
+    it('should connect to the creaated branch repo instance', () => {
 
     })
   })
