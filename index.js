@@ -16,7 +16,7 @@ const uuid = require('uuid')
 require('string.prototype.includes');
 
 const ACCESS_TOKEN = process.env.AUTH_TOKEN || '6d0e7de3c05331ba4dc15d3e3067b55c990a4fdf'
-const API_URL = process.env.API_URL || 'https://api.runnable-gamma.com'
+const API_URL = process.env.API_URL || 'https://api.runnable-beta.com'
 const API_SOCKET_SERVER = process.env.API_SOCKET_SERVER || API_URL.replace('api', 'apisock')
 const DOCKERFILE_BODY = fs.readFileSync('./lib/build/source-dockerfile-body.txt').toString()
 const GITHUB_OAUTH_ID = 2828361 // Runnable
@@ -99,97 +99,116 @@ describe('1. New Service Containers', () => {
   let contextVersion
   let build
 
-  it('should fetch all template containers', (done) => {
-    return client.fetchInstancesAsync({ githubUsername: 'HelloRunnable' })
-      .then((instancesData) => {
-        let instanceData = instancesData.filter((x) => x.name === SERIVCE_NAME)[0]
-        sourceInstance = Promise.promisifyAll(client.newInstance(instanceData))
+  describe('Creating Container', () => {
+    it('should fetch all template containers', (done) => {
+      return client.fetchInstancesAsync({ githubUsername: 'HelloRunnable' })
+        .then((instancesData) => {
+          let instanceData = instancesData.filter((x) => x.name === SERIVCE_NAME)[0]
+          sourceInstance = Promise.promisifyAll(client.newInstance(instanceData))
+        })
+        .asCallback(done)
+    })
+
+    it('should copy the source instance', (done) => {
+      sourceInstance.contextVersion = Promise.promisifyAll(sourceInstance.contextVersion)
+      return sourceInstance.contextVersion.deepCopyAsync({
+        owner: {
+          github: GITHUB_OAUTH_ID
+        }
       })
-      .asCallback(done)
+        .then((versionData) => {
+          let context = client.newContext({ _id: '999' })
+          contextVersion = Promise.promisifyAll(context.newVersion(versionData));
+        })
+        .asCallback(done)
+    })
+
+    it('should create the build', (done) => {
+      return client.createBuildAsync({
+        contextVersions: [contextVersion.id()],
+        owner: {
+          github: GITHUB_OAUTH_ID
+        }
+      })
+        .then((buildData) => {
+          build = Promise.promisifyAll(client.newBuild(buildData))
+        })
+        .asCallback(done)
+    })
+
+    it('should build the build', (done) => {
+      return build.buildAsync({
+        message: 'Initial Build'
+      })
+        .asCallback(done)
+    })
+
+    it('should create an instance', (done) => {
+      return client.createInstanceAsync({
+        masterPod: true,
+        name: SERIVCE_NAME,
+        env: [
+          'TIME=' + (new Date()).getTime()
+        ],
+        ipWhitelist: {
+          enabled: false
+        },
+        owner: {
+          github: GITHUB_OAUTH_ID
+        },
+        build: build.id()
+      })
+        .then((instanceData) => {
+          serviceInstance = Promise.promisifyAll(client.newInstance(instanceData))
+          return serviceInstance.fetchAsync()
+        })
+        .asCallback(done)
+    })
   })
 
-  it('should copy the source instance', (done) => {
-    sourceInstance.contextVersion = Promise.promisifyAll(sourceInstance.contextVersion)
-    return sourceInstance.contextVersion.deepCopyAsync({
-      owner: {
-        github: GITHUB_OAUTH_ID
+  describe('Working Container', () => {
+    let socket
+    let container
+    before(() => {
+      socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
+    })
+
+    it('should have a dockerContainer', (done) => {
+      let statusCheck = () => {
+        if (serviceInstance.attrs.container.dockerContainer) {
+          container = serviceInstance.attrs.container
+          return done()
+        }
+        serviceInstance.fetchAsync()
+        return delay(500)
+          .then(() => statusCheck())
       }
+      return statusCheck()
     })
-      .then((versionData) => {
-        let context = client.newContext({ _id: '999' })
-        contextVersion = Promise.promisifyAll(context.newVersion(versionData));
-      })
-      .asCallback(done)
-  })
 
-  it('should create the build', (done) => {
-    return client.createBuildAsync({
-      contextVersions: [contextVersion.id()],
-      owner: {
-        github: GITHUB_OAUTH_ID
+    it('should get logs for that container', (done) => {
+      // TODO: Improve test to test only build logs
+     let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, serviceInstance.attrs.contextVersion.id)
+      let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /running.*rethinkdb/i)
+      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
+        .asCallback(done)
+    })
+
+    it('should be succsefully built', (done) => {
+      let statusCheck = () => {
+        if (serviceInstance.status() === 'running') return done()
+        serviceInstance.fetchAsync()
+        return delay(500)
+          .then(() => statusCheck())
       }
+      return statusCheck()
     })
-      .then((buildData) => {
-        build = Promise.promisifyAll(client.newBuild(buildData))
-      })
-      .asCallback(done)
-  })
 
-  it('should build the build', (done) => {
-    return build.buildAsync({
-      message: 'Initial Build'
+    it('should have a working terminal', (done) => {
+      let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
+      return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+        .asCallback(done)
     })
-      .asCallback(done)
-  })
-
-  it('should create an instance', (done) => {
-    return client.createInstanceAsync({
-      masterPod: true,
-      name: SERIVCE_NAME,
-      env: [
-        'TIME=' + (new Date()).getTime()
-      ],
-      ipWhitelist: {
-        enabled: false
-      },
-      owner: {
-        github: GITHUB_OAUTH_ID
-      },
-      build: build.id()
-    })
-      .then((instanceData) => {
-        serviceInstance = Promise.promisifyAll(client.newInstance(instanceData))
-        return serviceInstance.fetchAsync()
-      })
-      .asCallback(done)
-  })
-
-  it('should get logs for that container', (done) => {
-    // TODO: Improve test to test only build logs
-    let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
-    let container = serviceInstance.attrs.container
-    let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, serviceInstance.attrs.contextVersion.id)
-    let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /running.*rethinkdb/i)
-    return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
-      .asCallback(done)
-  })
-
-  it('should be succsefully built', (done) => {
-    let statusCheck = () => {
-      if (serviceInstance.status() === 'running') return done()
-      serviceInstance.fetchAsync()
-      return delay(500)
-        .then(() => statusCheck())
-    }
-    return statusCheck()
-  })
-
-  it('should have a working terminal', (done) => {
-    let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
-    let container = serviceInstance.attrs.container
-    let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
-    return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
-      .asCallback(done)
   })
 })
 
@@ -362,10 +381,27 @@ describe('2. New Repository Containers', () => {
   })
 
   describe('Working Container', () => {
+    let socket
+    let container
+    before(() => {
+      socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
+    })
+
+    it('should have a dockerContainer', (done) => {
+      let statusCheck = () => {
+        if (serviceInstance.attrs.container.dockerContainer) {
+          container = serviceInstance.attrs.container
+          return done()
+        }
+        serviceInstance.fetchAsync()
+        return delay(500)
+          .then(() => statusCheck())
+      }
+      return statusCheck()
+    })
+
     it('should get logs for that container', (done) => {
       // TODO: Improve test to test only build logs
-      let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
-      let container = repoInstance.attrs.container
       let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, repoInstance.attrs.contextVersion.id)
       let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
       return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
@@ -383,8 +419,6 @@ describe('2. New Repository Containers', () => {
     })
 
     it('should have a working terminal', (done) => {
-      let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
-      let container = repoInstance.attrs.container
       let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
         .asCallback(done)
