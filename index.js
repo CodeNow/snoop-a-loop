@@ -54,12 +54,13 @@ after((done) => {
   client.logout(done)
 })
 
-after((done) => {
-  return request.delAsync(Object.assign(reqOpts, {
-    url: ref.url + '?access_token=' + ACCESS_TOKEN,
-  }))
-    .asCallback(done)
-})
+// after((done) => {
+  // // TODO: Move this to cleanup
+  // return request.delAsync(Object.assign(reqOpts, {
+    // url: ref.url + '?access_token=' + ACCESS_TOKEN,
+  // }))
+    // .asCallback(done)
+// })
 
 describe('Cleanup', () => {
   let repoInstance
@@ -577,24 +578,30 @@ describe('4. Github Webhooks', () => {
   })
 })
 
-xdescribe('5. Container To Container DNS', () => {
+describe('5. Container To Container DNS', () => {
   describe('Repo Instance', () => {
-    it('should connect to the service container from the master branch', () => {
-
+    it('should connect to the service container from the master branch', (done) => {
+      let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
+      let container = repoInstance.attrs.container
+      let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', /succesfully.*connected.*to.*db/i)
+      return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+        .asCallback(done)
     })
 
-    it('should connect to the service container from the created branch', () => {
-
+    it('should connect to the service container from the created branch', (done) => {
+      let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
+      let container = repoBranchInstance.attrs.container
+      let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', /succesfully.*connected.*to.*db/i)
+      return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+        .asCallback(done)
     })
   })
 
   xdescribe('Service Instance', () => {
-    it('should connect to the master branch repo instance', () => {
-
+    it('should connect to the master branch repo instance', (done) => {
     })
 
-    it('should connect to the creaated branch repo instance', () => {
-
+    it('should connect to the creaated branch repo instance', (done) => {
     })
   })
 })
