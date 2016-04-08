@@ -15,14 +15,16 @@ const socketUtils = require('./lib/socket/utils.js')
 const uuid = require('uuid')
 require('string.prototype.includes');
 
-const ACCESS_TOKEN = process.env.AUTH_TOKEN || '6d0e7de3c05331ba4dc15d3e3067b55c990a4fdf'
-const API_URL = process.env.API_URL || 'https://api.runnable-beta.com'
+const ACCESS_TOKEN = process.env.AUTH_TOKEN || '186215ea8d079e6cb8d012f89d061c2527357a37'
+const API_URL = process.env.API_URL || 'https://api.runnable-gamma.com'
 const API_SOCKET_SERVER = process.env.API_SOCKET_SERVER || API_URL.replace('api', 'apisock')
 const DOCKERFILE_BODY = fs.readFileSync('./lib/build/source-dockerfile-body.txt').toString()
 const GITHUB_OAUTH_ID = 2828361 // Runnable
 const GITHUB_REPO_NAME = 'hello-node-rethinkdb'
 const GITHUB_USERNAME = 'Runnable'
 const SERIVCE_NAME = 'RethinkDB'
+const REPO_CONTAINER_MATCH = /succesfully.*connected.*to.*db/i
+const SERVICE_CONTAINER_MATCH = /rethinkdb.*administration.*console/i
 
 const userContentDomains = {
   'runnable-beta': 'runnablecloud.com',
@@ -55,7 +57,6 @@ after((done) => {
 })
 
 // after((done) => {
-  // // TODO: Move this to cleanup
   // return request.delAsync(Object.assign(reqOpts, {
     // url: ref.url + '?access_token=' + ACCESS_TOKEN,
   // }))
@@ -466,7 +467,7 @@ describe('3. Rebuild Repo Container', () => {
           .then(() => containerCheck())
       }
       return containerCheck()
-    })
+    }).timeout(15000)
 
     it('should get logs for that container', (done) => {
       // TODO: Improve test to test only build logs
@@ -617,7 +618,7 @@ describe('5. Container To Container DNS', () => {
     it('should connect to the service container from the master branch', (done) => {
       let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
       let container = repoInstance.attrs.container
-      let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', /succesfully.*connected.*to.*db/i)
+      let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', REPO_CONTAINER_MATCH)
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
         .asCallback(done)
     })
@@ -625,7 +626,7 @@ describe('5. Container To Container DNS', () => {
     it('should connect to the service container from the created branch', (done) => {
       let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
       let container = repoBranchInstance.attrs.container
-      let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', /succesfully.*connected.*to.*db/i)
+      let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', REPO_CONTAINER_MATCH)
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
         .asCallback(done)
     })
@@ -640,5 +641,36 @@ describe('5. Container To Container DNS', () => {
   })
 })
 
-xdescribe('6. Navi URLs', () => {
+describe('6. Navi URLs', () => {
+
+  describe('Repo Instance', () => {
+    it('should access the main container', (done) => {
+      let hostname = repoInstance.getContainerHostname()
+      return request.getAsync('http://' + hostname)
+        .then(function (res) {
+          expect(res.body).to.match(REPO_CONTAINER_MATCH)
+        })
+        .asCallback(done)
+    })
+
+    it('should access the branch container', (done) => {
+      let hostname = repoBranchInstance.getContainerHostname()
+      return request.getAsync('http://' + hostname)
+        .then(function (res) {
+          expect(res.body).to.match(REPO_CONTAINER_MATCH)
+        })
+        .asCallback(done)
+    })
+  })
+
+  describe('Service Instance', () => {
+    it('should connect to the service instance', (done) => {
+      let hostname = serviceInstance.getContainerHostname()
+      return request.getAsync('http://' + hostname + ':8080')
+        .then(function (res) {
+          expect(res.body).to.match(SERVICE_CONTAINER_MATCH)
+        })
+        .asCallback(done)
+    })
+  })
 })
