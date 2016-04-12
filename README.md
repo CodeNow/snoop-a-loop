@@ -32,4 +32,4 @@ Some of the things we could add in the future are:
 - Auto-isolation
 - DNS & Switching between branches
 - Starting/Stopping/Restarting containers
-- Switching commits
+- Switching commits. Pushing new commits to branch
