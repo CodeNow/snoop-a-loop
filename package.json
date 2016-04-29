@@ -20,6 +20,7 @@
     "github": "^0.2.4",
     "keypather": "^1.10.2",
     "loadenv": "^2.1.0",
+    "lodash": "^4.11.1",
     "mocha": "^2.4.5",
     "objectid": "^3.2.1",
     "range": "0.0.3",
@@ -29,6 +30,7 @@
     "steer-loaded": "^0.3.0",
     "string.prototype.includes": "^1.0.0",
     "uuid": "^2.0.1",
-    "ws": "^1.0.1"
+    "ws": "^1.0.1",
+    "yargs": "^4.6.0"
   }
 }
