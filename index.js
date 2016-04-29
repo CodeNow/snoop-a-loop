@@ -15,23 +15,10 @@ const socketUtils = require('./lib/socket/utils.js')
 const uuid = require('uuid')
 require('string.prototype.includes');
 
-const ACCESS_TOKEN = process.env.AUTH_TOKEN || '186215ea8d079e6cb8d012f89d061c2527357a37'
-const API_URL = process.env.API_URL || 'https://api.runnable-gamma.com'
-const API_SOCKET_SERVER = process.env.API_SOCKET_SERVER || API_URL.replace('api', 'apisock')
-const DOCKERFILE_BODY = fs.readFileSync('./lib/build/source-dockerfile-body.txt').toString()
-const GITHUB_OAUTH_ID = 2828361 // Runnable
-const GITHUB_REPO_NAME = 'hello-node-rethinkdb'
-const GITHUB_USERNAME = 'Runnable'
-const SERIVCE_NAME = 'RethinkDB'
-const REPO_CONTAINER_MATCH = /succesfully.*connected.*to.*db/i
-const SERVICE_CONTAINER_MATCH = /rethinkdb.*administration.*console/i
+// Parse ENVs and passed args
+const opts = require('./lib/utils/env-arg-parser')
 
-const userContentDomains = {
-  'runnable-beta': 'runnablecloud.com',
-  'runnable-gamma': 'runnable.ninja',
-  'runnable': 'runnableapp.com' // runnable.io
-}
-const USER_CONTENT_DOMAIN = process.env.USER_CONTENT_DOMAIN || userContentDomains[API_URL.match(/runnable[\-A-z]*/i)]
+const DOCKERFILE_BODY = fs.readFileSync('./lib/build/source-dockerfile-body.txt').toString()
 
 let client
 let serviceInstance
@@ -47,8 +34,8 @@ const reqOpts = {
 }
 
 before((done) => {
-  client = Promise.promisifyAll(new Runnable(API_URL, { userContentDomain: USER_CONTENT_DOMAIN }))
-  return client.githubLoginAsync(ACCESS_TOKEN)
+  client = Promise.promisifyAll(new Runnable(opts.API_URL, { userContentDomain: opts.USER_CONTENT_DOMAIN }))
+  return client.githubLoginAsync(opts.ACCESS_TOKEN)
     .asCallback(done)
 })
 
@@ -68,13 +55,13 @@ describe('Cleanup', () => {
   let serviceInstance
 
   it('should fetch the instances', (done) => {
-    return client.fetchInstancesAsync({ githubUsername: GITHUB_USERNAME })
+    return client.fetchInstancesAsync({ githubUsername: opts.GITHUB_USERNAME })
       .then((instancesData) => {
-        let serviceInstanceInstanceData = instancesData.filter((x) => x.name === SERIVCE_NAME)[0]
+        let serviceInstanceInstanceData = instancesData.filter((x) => x.name === opts.SERVICE_NAME)[0]
         if (serviceInstanceInstanceData) {
           serviceInstance = Promise.promisifyAll(client.newInstance(serviceInstanceInstanceData))
         }
-        let repoInstanceInstanceData = instancesData.filter((x) => x.name === GITHUB_REPO_NAME)[0]
+        let repoInstanceInstanceData = instancesData.filter((x) => x.name === opts.GITHUB_REPO_NAME)[0]
         if (repoInstanceInstanceData) {
           repoInstance = Promise.promisifyAll(client.newInstance(repoInstanceInstanceData))
         }
@@ -104,7 +91,7 @@ describe('1. New Service Containers', () => {
     it('should fetch all template containers', (done) => {
       return client.fetchInstancesAsync({ githubUsername: 'HelloRunnable' })
         .then((instancesData) => {
-          let instanceData = instancesData.filter((x) => x.name === SERIVCE_NAME)[0]
+          let instanceData = instancesData.filter((x) => x.name === opts.SERVICE_NAME)[0]
           sourceInstance = Promise.promisifyAll(client.newInstance(instanceData))
         })
         .asCallback(done)
@@ -114,7 +101,7 @@ describe('1. New Service Containers', () => {
       sourceInstance.contextVersion = Promise.promisifyAll(sourceInstance.contextVersion)
       return sourceInstance.contextVersion.deepCopyAsync({
         owner: {
-          github: GITHUB_OAUTH_ID
+          github: opts.GITHUB_OAUTH_ID
         }
       })
         .then((versionData) => {
@@ -128,7 +115,7 @@ describe('1. New Service Containers', () => {
       return client.createBuildAsync({
         contextVersions: [contextVersion.id()],
         owner: {
-          github: GITHUB_OAUTH_ID
+          github: opts.GITHUB_OAUTH_ID
         }
       })
         .then((buildData) => {
@@ -147,7 +134,7 @@ describe('1. New Service Containers', () => {
     it('should create an instance', (done) => {
       return client.createInstanceAsync({
         masterPod: true,
-        name: SERIVCE_NAME,
+        name: opts.SERVICE_NAME,
         env: [
           'TIME=' + (new Date()).getTime()
         ],
@@ -155,7 +142,7 @@ describe('1. New Service Containers', () => {
           enabled: false
         },
         owner: {
-          github: GITHUB_OAUTH_ID
+          github: opts.GITHUB_OAUTH_ID
         },
         build: build.id()
       })
@@ -171,12 +158,12 @@ describe('1. New Service Containers', () => {
     let socket
     let container
     before(() => {
-      socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
+      socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
     })
 
     it('should have a dockerContainer', (done) => {
       let statusCheck = () => {
-        if (serviceInstance.attrs.container.dockerContainer) {
+        if (serviceInstance.attrs.container && serviceInstance.attrs.container.dockerContainer) {
           container = serviceInstance.attrs.container
           return done()
         }
@@ -228,11 +215,11 @@ describe('2. New Repository Containers', () => {
   describe('Create A Container', () => {
     describe('Github', () => {
       it('should create a github org', () => {
-        githubOrg = Promise.promisifyAll(client.newGithubOrg(GITHUB_USERNAME))
+        githubOrg = Promise.promisifyAll(client.newGithubOrg(opts.GITHUB_USERNAME))
       })
 
       it('should fetch a github branch', (done) => {
-        return githubOrg.fetchRepoAsync(GITHUB_REPO_NAME, reqOpts)
+        return githubOrg.fetchRepoAsync(opts.GITHUB_REPO_NAME, reqOpts)
           .then((_githubRepo) => {
             githubRepo = Promise.promisifyAll(client.newGithubRepo(_githubRepo))
           })
@@ -240,7 +227,7 @@ describe('2. New Repository Containers', () => {
       })
 
       it('should fetch a github repo branch', (done) => {
-        return githubRepo.fetchBranchAsync('master', reqOpts)
+        return githubRepo.fetchBranchAsync('staging', reqOpts)
           .then((_branch) => {
             githubBranch = _branch
           })
@@ -272,9 +259,9 @@ describe('2. New Repository Containers', () => {
       it('should create a context', (done) => {
         client.createContextAsync({
           name: uuid.v4(),
-          'owner.github': GITHUB_OAUTH_ID,
+          'owner.github': opts.GITHUB_OAUTH_ID,
           owner: {
-            github: GITHUB_OAUTH_ID
+            github: opts.GITHUB_OAUTH_ID
           }
         })
         .then((contextData) => {
@@ -295,7 +282,7 @@ describe('2. New Repository Containers', () => {
       })
 
       it('should fetch the stack analysis', (done) => {
-        let fullRepoName = GITHUB_USERNAME + '/' + GITHUB_REPO_NAME
+        let fullRepoName = opts.GITHUB_USERNAME + '/' + opts.GITHUB_REPO_NAME
         client.client = Promise.promisifyAll(client.client)
         return client.client.getAsync('/actions/analyze?repo=' + fullRepoName)
           .then((stackAnalysis) => {
@@ -313,7 +300,7 @@ describe('2. New Repository Containers', () => {
             contextVersionDockerfile = Promise.promisifyAll(contextVersion.newFile(dockerfile))
             return contextVersionDockerfile.updateAsync({
               json: {
-                body: DOCKERFILE_BODY.replace(new RegExp('GITHUB_REPO_NAME', 'g'), GITHUB_REPO_NAME)
+                body: DOCKERFILE_BODY.replace(new RegExp('GITHUB_REPO_NAME', 'g'), opts.GITHUB_REPO_NAME)
               }
             })
           })
@@ -338,7 +325,7 @@ describe('2. New Repository Containers', () => {
         return client.createBuildAsync({
           contextVersions: [contextVersion.id()],
           owner: {
-            github: GITHUB_OAUTH_ID
+            github: opts.GITHUB_OAUTH_ID
           }
         })
         .then((buildData) => {
@@ -357,10 +344,10 @@ describe('2. New Repository Containers', () => {
       })
 
       it('should create an instance', (done) => {
-        let serviceLink = SERIVCE_NAME.toUpperCase() + '=' + serviceInstance.getContainerHostname()
+        let serviceLink = opts.SERVICE_NAME.toUpperCase() + '=' + serviceInstance.getContainerHostname()
         return client.createInstanceAsync({
           masterPod: true,
-          name: GITHUB_REPO_NAME,
+          name: opts.GITHUB_REPO_NAME,
           env: [
             serviceLink
           ],
@@ -368,7 +355,7 @@ describe('2. New Repository Containers', () => {
             enabled: false
           },
           owner: {
-            github: GITHUB_OAUTH_ID
+            github: opts.GITHUB_OAUTH_ID
           },
           build: build.id()
         })
@@ -385,7 +372,7 @@ describe('2. New Repository Containers', () => {
     let socket
     let container
     before(() => {
-      socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
+      socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
     })
 
     it('should have a dockerContainer', (done) => {
@@ -467,17 +454,17 @@ describe('3. Rebuild Repo Container', () => {
           .then(() => containerCheck())
       }
       return containerCheck()
-    }).timeout(15000)
+    }).timeout(opts.TIMEOUT)
 
     it('should get logs for that container', (done) => {
       // TODO: Improve test to test only build logs
-      let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
+      let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
       let container = repoInstance.attrs.container
       let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, repoInstance.attrs.contextVersion.id)
       let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
       return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
         .asCallback(done)
-    })
+    }).timeout(opts.TIMEOUT)
 
     it('should be succsefully built', (done) => {
       let statusCheck = () => {
@@ -490,7 +477,7 @@ describe('3. Rebuild Repo Container', () => {
     })
 
     it('should have a working terminal', (done) => {
-      let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
+      let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
       let container = repoInstance.attrs.container
       let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n')
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
@@ -517,7 +504,7 @@ describe('4. Github Webhooks', () => {
       })
       github.authenticate({
         type: 'token',
-        token: ACCESS_TOKEN
+        token: opts.ACCESS_TOKEN
       })
     })
 
@@ -585,7 +572,7 @@ describe('4. Github Webhooks', () => {
 
     it('should get logs for that container', (done) => {
       // TODO: Improve test to test only build logs
-      let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
+      let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
       let container = repoBranchInstance.attrs.container
       let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, repoBranchInstance.attrs.contextVersion.id)
       let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
@@ -604,7 +591,7 @@ describe('4. Github Webhooks', () => {
     })
 
     it('should have a working terminal', (done) => {
-      let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
+      let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
       let container = repoBranchInstance.attrs.container
       let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
@@ -616,17 +603,17 @@ describe('4. Github Webhooks', () => {
 describe('5. Container To Container DNS', () => {
   describe('Repo Instance', () => {
     it('should connect to the service container from the master branch', (done) => {
-      let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
+      let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
       let container = repoInstance.attrs.container
-      let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', REPO_CONTAINER_MATCH)
+      let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', opts.REPO_CONTAINER_MATCH)
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
         .asCallback(done)
     })
 
     it('should connect to the service container from the created branch', (done) => {
-      let socket = socketUtils.createSocketConnection(API_SOCKET_SERVER, client.connectSid)
+      let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
       let container = repoBranchInstance.attrs.container
-      let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', REPO_CONTAINER_MATCH)
+      let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', opts.REPO_CONTAINER_MATCH)
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
         .asCallback(done)
     })
@@ -648,7 +635,7 @@ describe('6. Navi URLs', () => {
       let hostname = repoInstance.getContainerHostname()
       return request.getAsync('http://' + hostname)
         .then(function (res) {
-          expect(res.body).to.match(REPO_CONTAINER_MATCH)
+          expect(res.body).to.match(opts.REPO_CONTAINER_MATCH)
         })
         .asCallback(done)
     })
@@ -657,7 +644,7 @@ describe('6. Navi URLs', () => {
       let hostname = repoBranchInstance.getContainerHostname()
       return request.getAsync('http://' + hostname)
         .then(function (res) {
-          expect(res.body).to.match(REPO_CONTAINER_MATCH)
+          expect(res.body).to.match(opts.REPO_CONTAINER_MATCH)
         })
         .asCallback(done)
     })
@@ -668,7 +655,7 @@ describe('6. Navi URLs', () => {
       let hostname = serviceInstance.getContainerHostname()
       return request.getAsync('http://' + hostname + ':8080')
         .then(function (res) {
-          expect(res.body).to.match(SERVICE_CONTAINER_MATCH)
+          expect(res.body).to.match(opts.SERVICE_CONTAINER_MATCH)
         })
         .asCallback(done)
     })

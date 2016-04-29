@@ -13,9 +13,26 @@
 ## Steps To Run
 
 1. Push your branch to desired environment
-2. Run `npm start`. If testing in another environment other than gamma, pass a `API_URL` env
+2. Run `npm start`. If testing in another environment other than gamma, pass a arg flag with the env name (`npm start -- --beta`).
 
 ![screenshot.png](screenshot.png)
+
+## Options
+
+### CLI Opts
+
+CLI options are passed as follows: `npm start -- --bool --num 1`
+
+1. Environment: `--staging`, `--gamma`, `--beta`, `--epsilon`, `--delta`
+2. Timeout: `--timeout NUMBER`
+2. Github Auth Token: `--auth-token AUTH_TOKEN`
+
+## ENV opts (CLI opts override these)
+
+1. `API_URL`
+2. `API_SOCKET_SERVER`
+3. `AUTH_TOKEN`
+4. `TIMEOUT`
 
 ## Philosophy And Constraints
 
