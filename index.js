@@ -347,7 +347,7 @@ describe('2. New Repository Containers', () => {
         let serviceLink = opts.SERVICE_NAME.toUpperCase() + '=' + serviceInstance.getContainerHostname()
         return client.createInstanceAsync({
           masterPod: true,
-          name: opts.GITHUB_REPO_NAME,
+          name: opts.GITHUB_REPO_NAME + '-' + Math.floor(Math.random() * 1000),
           env: [
             serviceLink
           ],
