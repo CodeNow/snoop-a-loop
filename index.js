@@ -33,8 +33,32 @@ const reqOpts = {
   }
 }
 
+const customPromisifyAll = (obj) => {
+  const hasProp = {}.hasOwnProperty;
+  for (var key in obj) {
+    ((key) => {
+      if (hasProp.call(obj, key + 'Async') !== false) {
+        return
+      }
+      if (typeof obj[key] === 'function') {
+        let myFunc = function () {
+          let results
+          return Promise.fromCallback((cb) => {
+            const args = [].slice.call(arguments)
+            args.push(cb)
+            results = obj[key].apply(obj, args)
+          })
+            .return(results)
+        }
+        obj[key + 'Async'] = myFunc
+      }
+    })(key)
+  }
+}
+
 before((done) => {
-  client = Promise.promisifyAll(new Runnable(opts.API_URL, { userContentDomain: opts.USER_CONTENT_DOMAIN }))
+  client = new Runnable(opts.API_URL, { userContentDomain: opts.USER_CONTENT_DOMAIN })
+  customPromisifyAll(client)
   return client.githubLoginAsync(opts.ACCESS_TOKEN)
     .asCallback(done)
 })
@@ -56,15 +80,11 @@ describe('Cleanup', () => {
 
   it('should fetch the instances', (done) => {
     return client.fetchInstancesAsync({ githubUsername: opts.GITHUB_USERNAME })
-      .then((instancesData) => {
-        let serviceInstanceInstanceData = instancesData.filter((x) => x.name === opts.SERVICE_NAME)[0]
-        if (serviceInstanceInstanceData) {
-          serviceInstance = Promise.promisifyAll(client.newInstance(serviceInstanceInstanceData))
-        }
-        let repoInstanceInstanceData = instancesData.filter((x) => x.name === opts.GITHUB_REPO_NAME)[0]
-        if (repoInstanceInstanceData) {
-          repoInstance = Promise.promisifyAll(client.newInstance(repoInstanceInstanceData))
-        }
+      .then((instances) => {
+        serviceInstance = instances.models.filter((x) => x.attrs.name === opts.SERVICE_NAME)[0]
+        customPromisifyAll(serviceInstance)
+        repoInstance = instances.models.filter((x) => x.attrs.name === opts.GITHUB_REPO_NAME)[0]
+        customPromisifyAll(repoInstance)
       })
       .asCallback(done)
   })
@@ -90,23 +110,28 @@ describe('1. New Service Containers', () => {
   describe('Creating Container', () => {
     it('should fetch all template containers', (done) => {
       return client.fetchInstancesAsync({ githubUsername: 'HelloRunnable' })
-        .then((instancesData) => {
-          let instanceData = instancesData.filter((x) => x.name === opts.SERVICE_NAME)[0]
-          sourceInstance = Promise.promisifyAll(client.newInstance(instanceData))
+        .then((instances) => {
+          sourceInstance = instances.models.filter((x) => x.attrs.name === opts.SERVICE_NAME)[0]
+          customPromisifyAll(sourceInstance)
         })
         .asCallback(done)
     })
 
     it('should copy the source instance', (done) => {
       sourceInstance.contextVersion = Promise.promisifyAll(sourceInstance.contextVersion)
-      return sourceInstance.contextVersion.deepCopyAsync({
-        owner: {
-          github: opts.GITHUB_OAUTH_ID
-        }
+      return Promise.fromCallback((cb) =>{
+        contextVersion = sourceInstance.contextVersion.deepCopy({
+          owner: {
+            github: opts.GITHUB_OAUTH_ID
+          }
+        }, cb)
       })
-        .then((versionData) => {
-          let context = client.newContext({ _id: '999' })
-          contextVersion = Promise.promisifyAll(context.newVersion(versionData));
+        .then(() => {
+          Promise.promisifyAll(contextVersion)
+          return contextVersion
+            .updateAsync({
+              advanced: true
+            })
         })
         .asCallback(done)
     })
@@ -118,8 +143,9 @@ describe('1. New Service Containers', () => {
           github: opts.GITHUB_OAUTH_ID
         }
       })
-        .then((buildData) => {
-          build = Promise.promisifyAll(client.newBuild(buildData))
+        .then((buildResponse) => {
+          build = buildResponse
+          customPromisifyAll(build)
         })
         .asCallback(done)
     })
@@ -133,22 +159,22 @@ describe('1. New Service Containers', () => {
 
     it('should create an instance', (done) => {
       return client.createInstanceAsync({
-        masterPod: true,
-        name: opts.SERVICE_NAME,
-        env: [
-          'TIME=' + (new Date()).getTime()
-        ],
-        ipWhitelist: {
-          enabled: false
-        },
-        owner: {
-          github: opts.GITHUB_OAUTH_ID
-        },
-        build: build.id()
-      })
-        .then((instanceData) => {
-          serviceInstance = Promise.promisifyAll(client.newInstance(instanceData))
-          return serviceInstance.fetchAsync()
+          masterPod: true,
+          name: opts.SERVICE_NAME,
+          env: [
+            'TIME=' + (new Date()).getTime()
+          ],
+          ipWhitelist: {
+            enabled: false
+          },
+          owner: {
+            github: opts.GITHUB_OAUTH_ID
+          },
+          build: build.id()
+        })
+        .then((rtnInstance) => {
+          serviceInstance = rtnInstance
+          customPromisifyAll(serviceInstance)
         })
         .asCallback(done)
     })
@@ -238,9 +264,9 @@ describe('2. New Repository Containers', () => {
     describe('Source Context', (done) => {
       it('should fetch the source context', (done) => {
         return client.fetchContextsAsync({ isSource: true })
-          .then((sourceContextsData) => {
-            let sourceContextData = sourceContextsData.filter((x) => x.lowerName.match(/nodejs/i))[0]
-            sourceContext = Promise.promisifyAll(client.newContext(sourceContextData))
+          .then((sourceContexts) => {
+            sourceContext = sourceContexts.models.find((x) => x.attrs.lowerName.match(/nodejs/i))
+            customPromisifyAll(sourceContext)
           })
           .asCallback(done)
       })
@@ -248,14 +274,16 @@ describe('2. New Repository Containers', () => {
       it('should fetch the source context versions', (done) => {
         return sourceContext.fetchVersionsAsync({ qs: { sort: '-created' }})
           .then((versions) => {
-            sourceInfraCodeVersion = versions[0].infraCodeVersion;
-            sourceContextVersion = Promise.promisifyAll(sourceContext.newVersion(versions[0]));
+            sourceContextVersion = versions.models[0]
+            customPromisifyAll(sourceContextVersion)
+            sourceInfraCodeVersion = sourceContextVersion.attrs.infraCodeVersion;
+            customPromisifyAll(sourceInfraCodeVersion)
           })
           .asCallback(done)
       })
     })
 
-    describe('Context & Context Versions', (done) => {
+    describe('Context & Context Versions', () => {
       it('should create a context', (done) => {
         client.createContextAsync({
           name: uuid.v4(),
@@ -264,18 +292,20 @@ describe('2. New Repository Containers', () => {
             github: opts.GITHUB_OAUTH_ID
           }
         })
-        .then((contextData) => {
-          context = Promise.promisifyAll(client.newContext(contextData))
+        .then((results) => {
+          context = results
+          customPromisifyAll(context)
         })
         .asCallback(done)
       })
 
       it('should create a context version', (done) => {
         return context.createVersionAsync({
-          source: sourceContextVersion.id
+          source: sourceContextVersion.attrs.id
         })
-          .then((contextVersionData) => {
-            contextVersion = Promise.promisifyAll(context.newVersion(contextVersionData))
+          .then((returned) => {
+            contextVersion = returned
+            customPromisifyAll(contextVersion)
             return contextVersion.fetchAsync()
           })
           .asCallback(done)
@@ -320,7 +350,7 @@ describe('2. New Repository Containers', () => {
       })
     })
 
-    describe('Builds & Instances', (done) => {
+    describe('Builds & Instances', () => {
       it('should create a build for a context version', (done) => {
         return client.createBuildAsync({
           contextVersions: [contextVersion.id()],
@@ -328,8 +358,9 @@ describe('2. New Repository Containers', () => {
             github: opts.GITHUB_OAUTH_ID
           }
         })
-        .then((buildData) => {
-          build = Promise.promisifyAll(client.newBuild(buildData))
+        .then((rtn) => {
+          build = rtn
+          customPromisifyAll(build)
           build.contextVersion = contextVersion
           return build.fetchAsync()
         })
@@ -359,8 +390,9 @@ describe('2. New Repository Containers', () => {
           },
           build: build.id()
         })
-          .then((instanceData) => {
-            repoInstance = Promise.promisifyAll(client.newInstance(instanceData))
+          .then((rtn) => {
+            repoInstance = rtn
+            customPromisifyAll(repoInstance)
             return repoInstance.fetchAsync()
           })
           .asCallback(done)
@@ -396,7 +428,7 @@ describe('2. New Repository Containers', () => {
         .asCallback(done)
     })
 
-    it('should be succsefully built', (done) => {
+    it('should be successfully built', (done) => {
       let statusCheck = () => {
         if (repoInstance.status() === 'running') return done()
         repoInstance.fetchAsync()
@@ -544,14 +576,14 @@ describe('4. Github Webhooks', () => {
           })
         })
         .then((allInstances) => {
-          return allInstances.filter((instance) => {
-            return instance.name.toLowerCase().includes(repoName.toLowerCase())
+          return allInstances.models.filter((instance) => {
+            return instance.attrs.name.toLowerCase().includes(repoName.toLowerCase())
           })
         })
         .then((instances) => {
-          let instancesWithBranchName = instances.filter((x) => x.name.includes(branchName))
-          expect(instancesWithBranchName).to.have.lengthOf(1)
-          repoBranchInstance = Promise.promisifyAll(client.newInstance(instancesWithBranchName[0]))
+          repoBranchInstance = instances.find((x) => x.attrs.name.includes(branchName))
+          expect(repoBranchInstance).to.exist()
+          customPromisifyAll(repoBranchInstance)
           return repoInstance.fetchAsync()
         })
         .asCallback(done)
