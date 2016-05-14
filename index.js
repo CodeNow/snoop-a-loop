@@ -581,8 +581,8 @@ describe('4. Github Webhooks', () => {
           })
         })
         .then((instances) => {
-          repoBranchInstance = instances.find((x) => x.attrs.name.includes(branchName))
-          expect(repoBranchInstance).to.exist()
+          repoBranchInstance = instances.find((x) => x.attrs.name.includes(branchName))[0]
+          expect(repoBranchInstance).to.not.be(undefined)
           customPromisifyAll(repoBranchInstance)
           return repoInstance.fetchAsync()
         })
