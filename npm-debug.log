@@ -1,0 +1,50 @@
+0 info it worked if it ends with ok
+1 verbose cli [ '/Users/hiphipjorge/.nvm/versions/node/v4.3.1/bin/node',
+1 verbose cli   '/Users/hiphipjorge/.nvm/versions/node/v4.3.1/bin/npm',
+1 verbose cli   'start',
+1 verbose cli   '--',
+1 verbose cli   '--gamma' ]
+2 info using npm@3.7.5
+3 info using node@v4.3.1
+4 verbose run-script [ 'prestart', 'start', 'poststart' ]
+5 info lifecycle snoop-a-loop@1.0.0~prestart: snoop-a-loop@1.0.0
+6 silly lifecycle snoop-a-loop@1.0.0~prestart: no script for prestart, continuing
+7 info lifecycle snoop-a-loop@1.0.0~start: snoop-a-loop@1.0.0
+8 verbose lifecycle snoop-a-loop@1.0.0~start: unsafe-perm in lifecycle true
+9 verbose lifecycle snoop-a-loop@1.0.0~start: PATH: /Users/hiphipjorge/.nvm/versions/node/v4.3.1/lib/node_modules/npm/bin/node-gyp-bin:/Users/hiphipjorge/runnable/snoop-a-loop/node_modules/.bin:/Users/hiphipjorge/.nvm/versions/node/v4.3.1/bin:/Users/hiphipjorge/.rbenv/shims:/Users/hiphipjorge/.nvm/versions/node/v4.3.1/bin:/Library/Java/JavaVirtualMachines/jdk1.8.0_65.jdk/Contents/Home/bin:/Users/hiphipjorge/.cask/bin:/usr/local/Cellar/php56/5.6.19/bin:/usr/local/sbin:/usr/local/bin:/Users/hiphipjorge/bin:/usr/local/opt/coreutils/libexec/gnubin:/usr/local/opt/coreutils/libexec/gnubin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/hiphipjorge/Sites/go-projects/bin:/usr/local/opt/go/libexec/bin
+10 verbose lifecycle snoop-a-loop@1.0.0~start: CWD: /Users/hiphipjorge/runnable/snoop-a-loop
+11 silly lifecycle snoop-a-loop@1.0.0~start: Args: [ '-c',
+11 silly lifecycle   './node_modules/mocha/bin/mocha -t 10000 -b index.js "--gamma"' ]
+12 silly lifecycle snoop-a-loop@1.0.0~start: Returned: code: 1  signal: null
+13 info lifecycle snoop-a-loop@1.0.0~start: Failed to exec start script
+14 verbose stack Error: snoop-a-loop@1.0.0 start: `./node_modules/mocha/bin/mocha -t 10000 -b index.js "--gamma"`
+14 verbose stack Exit status 1
+14 verbose stack     at EventEmitter.<anonymous> (/Users/hiphipjorge/.nvm/versions/node/v4.3.1/lib/node_modules/npm/lib/utils/lifecycle.js:239:16)
+14 verbose stack     at emitTwo (events.js:87:13)
+14 verbose stack     at EventEmitter.emit (events.js:172:7)
+14 verbose stack     at ChildProcess.<anonymous> (/Users/hiphipjorge/.nvm/versions/node/v4.3.1/lib/node_modules/npm/lib/utils/spawn.js:24:14)
+14 verbose stack     at emitTwo (events.js:87:13)
+14 verbose stack     at ChildProcess.emit (events.js:172:7)
+14 verbose stack     at maybeClose (internal/child_process.js:821:16)
+14 verbose stack     at Process.ChildProcess._handle.onexit (internal/child_process.js:211:5)
+15 verbose pkgid snoop-a-loop@1.0.0
+16 verbose cwd /Users/hiphipjorge/runnable/snoop-a-loop
+17 error Darwin 14.5.0
+18 error argv "/Users/hiphipjorge/.nvm/versions/node/v4.3.1/bin/node" "/Users/hiphipjorge/.nvm/versions/node/v4.3.1/bin/npm" "start" "--" "--gamma"
+19 error node v4.3.1
+20 error npm  v3.7.5
+21 error code ELIFECYCLE
+22 error snoop-a-loop@1.0.0 start: `./node_modules/mocha/bin/mocha -t 10000 -b index.js "--gamma"`
+22 error Exit status 1
+23 error Failed at the snoop-a-loop@1.0.0 start script './node_modules/mocha/bin/mocha -t 10000 -b index.js "--gamma"'.
+23 error Make sure you have the latest version of node.js and npm installed.
+23 error If you do, this is most likely a problem with the snoop-a-loop package,
+23 error not with npm itself.
+23 error Tell the author that this fails on your system:
+23 error     ./node_modules/mocha/bin/mocha -t 10000 -b index.js "--gamma"
+23 error You can get information on how to open an issue for this project with:
+23 error     npm bugs snoop-a-loop
+23 error Or if that isn't available, you can get their info via:
+23 error     npm owner ls snoop-a-loop
+23 error There is likely additional logging output above.
+24 verbose exit [ 1, true ]

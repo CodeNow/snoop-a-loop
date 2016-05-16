@@ -54,6 +54,7 @@ const customPromisifyAll = (obj) => {
       }
     })(key)
   }
+  return obj
 }
 
 before((done) => {
@@ -75,29 +76,31 @@ after((done) => {
 // })
 
 describe('Cleanup', () => {
-  let repoInstance
-  let serviceInstance
+  let repoInstances
+  let serviceInstances
 
   it('should fetch the instances', (done) => {
     return client.fetchInstancesAsync({ githubUsername: opts.GITHUB_USERNAME })
       .then((instances) => {
-        serviceInstance = instances.models.filter((x) => x.attrs.name === opts.SERVICE_NAME)[0]
-        customPromisifyAll(serviceInstance)
-        repoInstance = instances.models.filter((x) => x.attrs.name === opts.GITHUB_REPO_NAME)[0]
-        customPromisifyAll(repoInstance)
+        serviceInstances = instances.models
+          .filter((x) => x.attrs.name.includes(opts.SERVICE_NAME))
+          .map((x) => customPromisifyAll(x))
+        repoInstances = instances.models
+          .filter((x) => x.attrs.name.includes(opts.GITHUB_REPO_NAME))
+          .map((x) => customPromisifyAll(x))
       })
       .asCallback(done)
   })
 
   it('should delete/destroy the non-repo container', (done) => {
-    if (!serviceInstance) return done()
-    return serviceInstance.destroyAsync()
+    if (!serviceInstances.length === 0) return done()
+    return Promise.all(serviceInstances.map((x) => x.destroyAsync()))
       .asCallback(done)
   })
 
   it('should delete/destroy the repo container', (done) => {
-    if (!repoInstance) return done()
-    return repoInstance.destroyAsync()
+    if (!repoInstances.length === 0) return done()
+    return Promise.all(repoInstances.map((x) => x.destroyAsync()))
       .asCallback(done)
   })
 })
@@ -253,7 +256,7 @@ describe('2. New Repository Containers', () => {
       })
 
       it('should fetch a github repo branch', (done) => {
-        return githubRepo.fetchBranchAsync('staging', reqOpts)
+        return githubRepo.fetchBranchAsync('master', reqOpts)
           .then((_branch) => {
             githubBranch = _branch
           })
@@ -581,8 +584,8 @@ describe('4. Github Webhooks', () => {
           })
         })
         .then((instances) => {
-          repoBranchInstance = instances.find((x) => x.attrs.name.includes(branchName))[0]
-          expect(repoBranchInstance).to.not.be(undefined)
+          repoBranchInstance = instances.filter((x) => x.attrs.name.includes(branchName))[0]
+          expect(repoBranchInstance).to.not.be.undefined
           customPromisifyAll(repoBranchInstance)
           return repoInstance.fetchAsync()
         })
