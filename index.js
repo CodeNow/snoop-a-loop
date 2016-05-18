@@ -7,13 +7,15 @@ const fs = require('fs')
 const GitHubApi = require('github')
 const keypather = require('keypather')()
 const objectId = require('objectid')
-const PrimusClient = require('@runnable/api-client/lib/external/primus-client')
 const Promise = require('bluebird')
 const request = Promise.promisifyAll(require('request'))
-const Runnable = require('@runnable/api-client')
-const socketUtils = require('./lib/socket/utils.js')
 const uuid = require('uuid')
 require('string.prototype.includes');
+
+const PrimusClient = require('@runnable/api-client/lib/external/primus-client')
+const Runnable = require('@runnable/api-client')
+
+const socketUtils = require('./lib/socket/utils.js')
 
 // Parse ENVs and passed args
 const opts = require('./lib/utils/env-arg-parser')
@@ -33,7 +35,7 @@ const reqOpts = {
   }
 }
 
-const customPromisifyAll = (obj) => {
+const promisifyClientModel = (obj) => {
   const hasProp = {}.hasOwnProperty;
   for (var key in obj) {
     ((key) => {
@@ -59,7 +61,7 @@ const customPromisifyAll = (obj) => {
 
 before((done) => {
   client = new Runnable(opts.API_URL, { userContentDomain: opts.USER_CONTENT_DOMAIN })
-  customPromisifyAll(client)
+  promisifyClientModel(client)
   return client.githubLoginAsync(opts.ACCESS_TOKEN)
     .asCallback(done)
 })
@@ -84,10 +86,10 @@ describe('Cleanup', () => {
       .then((instances) => {
         serviceInstances = instances.models
           .filter((x) => x.attrs.name.includes(opts.SERVICE_NAME))
-          .map((x) => customPromisifyAll(x))
+          .map((x) => promisifyClientModel(x))
         repoInstances = instances.models
           .filter((x) => x.attrs.name.includes(opts.GITHUB_REPO_NAME))
-          .map((x) => customPromisifyAll(x))
+          .map((x) => promisifyClientModel(x))
       })
       .asCallback(done)
   })
@@ -115,7 +117,7 @@ describe('1. New Service Containers', () => {
       return client.fetchInstancesAsync({ githubUsername: 'HelloRunnable' })
         .then((instances) => {
           sourceInstance = instances.models.filter((x) => x.attrs.name === opts.SERVICE_NAME)[0]
-          customPromisifyAll(sourceInstance)
+          promisifyClientModel(sourceInstance)
         })
         .asCallback(done)
     })
@@ -148,7 +150,7 @@ describe('1. New Service Containers', () => {
       })
         .then((buildResponse) => {
           build = buildResponse
-          customPromisifyAll(build)
+          promisifyClientModel(build)
         })
         .asCallback(done)
     })
@@ -177,7 +179,7 @@ describe('1. New Service Containers', () => {
         })
         .then((rtnInstance) => {
           serviceInstance = rtnInstance
-          customPromisifyAll(serviceInstance)
+          promisifyClientModel(serviceInstance)
         })
         .asCallback(done)
     })
@@ -269,7 +271,7 @@ describe('2. New Repository Containers', () => {
         return client.fetchContextsAsync({ isSource: true })
           .then((sourceContexts) => {
             sourceContext = sourceContexts.models.find((x) => x.attrs.lowerName.match(/nodejs/i))
-            customPromisifyAll(sourceContext)
+            promisifyClientModel(sourceContext)
           })
           .asCallback(done)
       })
@@ -278,9 +280,9 @@ describe('2. New Repository Containers', () => {
         return sourceContext.fetchVersionsAsync({ qs: { sort: '-created' }})
           .then((versions) => {
             sourceContextVersion = versions.models[0]
-            customPromisifyAll(sourceContextVersion)
+            promisifyClientModel(sourceContextVersion)
             sourceInfraCodeVersion = sourceContextVersion.attrs.infraCodeVersion;
-            customPromisifyAll(sourceInfraCodeVersion)
+            promisifyClientModel(sourceInfraCodeVersion)
           })
           .asCallback(done)
       })
@@ -297,7 +299,7 @@ describe('2. New Repository Containers', () => {
         })
         .then((results) => {
           context = results
-          customPromisifyAll(context)
+          promisifyClientModel(context)
         })
         .asCallback(done)
       })
@@ -308,7 +310,7 @@ describe('2. New Repository Containers', () => {
         })
           .then((returned) => {
             contextVersion = returned
-            customPromisifyAll(contextVersion)
+            promisifyClientModel(contextVersion)
             return contextVersion.fetchAsync()
           })
           .asCallback(done)
@@ -363,7 +365,7 @@ describe('2. New Repository Containers', () => {
         })
         .then((rtn) => {
           build = rtn
-          customPromisifyAll(build)
+          promisifyClientModel(build)
           build.contextVersion = contextVersion
           return build.fetchAsync()
         })
@@ -395,7 +397,7 @@ describe('2. New Repository Containers', () => {
         })
           .then((rtn) => {
             repoInstance = rtn
-            customPromisifyAll(repoInstance)
+            promisifyClientModel(repoInstance)
             return repoInstance.fetchAsync()
           })
           .asCallback(done)
@@ -586,7 +588,7 @@ describe('4. Github Webhooks', () => {
         .then((instances) => {
           repoBranchInstance = instances.filter((x) => x.attrs.name.includes(branchName))[0]
           expect(repoBranchInstance).to.not.be.undefined
-          customPromisifyAll(repoBranchInstance)
+          promisifyClientModel(repoBranchInstance)
           return repoInstance.fetchAsync()
         })
         .asCallback(done)
