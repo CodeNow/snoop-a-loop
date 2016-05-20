@@ -23,11 +23,18 @@
 
 CLI options are passed as follows: `npm start -- --bool --num 1`
 
-1. Environment: `--staging`, `--gamma`, `--beta`, `--epsilon`, `--delta`
-2. Timeout: `--timeout NUMBER`
-2. Github Auth Token: `--auth-token AUTH_TOKEN`
+| Description                                    | Flag                                                     |
+|------------------------------------------------|----------------------------------------------------------|
+| Environment                                    | `--staging`, `--gamma`, `--beta`, `--epsilon`, `--delta` |
+| Timeout                                        | `--timeout NUMBER`                                       |
+| Github Auth Token                              | `--auth-token AUTH_TOKEN`                                |
+| No cleanup                                     | `--no_cleanup`                                           |
+| Don't run tests for rebuild without cache      | `--no_rebuild`                                           |
+| Don't run tests for Github webhooks            | `--no_webhooks`                                          |
+| Don't run tests for container to container DNS | `--no_dns`                                               |
+| Don't run tests for outside requests           | `--no_navi`                                              |
 
-## ENV opts (CLI opts override these)
+### ENV opts (CLI opts override these)
 
 1. `API_URL`
 2. `API_SOCKET_SERVER`

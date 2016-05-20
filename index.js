@@ -18,6 +18,9 @@ const Runnable = require('@runnable/api-client')
 const socketUtils = require('./lib/socket/utils.js')
 const promisifyClientModel = require('./lib/utils/promisify-client-model')
 
+const it = require('./lib/utils/mocha').it;
+const describe = require('./lib/utils/mocha').describe;
+
 // Parse ENVs and passed args
 const opts = require('./lib/utils/env-arg-parser')
 
@@ -82,7 +85,7 @@ describe('Cleanup', () => {
     return Promise.all(repoInstances.map((x) => x.destroyAsync()))
       .asCallback(done)
   })
-})
+}, !opts.NO_CLEANUP)
 
 describe('1. New Service Containers', () => {
   let sourceInstance
@@ -188,7 +191,7 @@ describe('1. New Service Containers', () => {
       let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /running.*rethinkdb/i)
       return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
         .asCallback(done)
-    })
+    }, !opts.NO_LOGS)
 
     it('should be succsefully built', (done) => {
       let statusCheck = () => {
@@ -408,7 +411,7 @@ describe('2. New Repository Containers', () => {
       let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
       return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
         .asCallback(done)
-    })
+    }, !opts.NO_LOGS)
 
     it('should be successfully built', (done) => {
       let statusCheck = () => {
@@ -478,7 +481,7 @@ describe('3. Rebuild Repo Container', () => {
       let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
       return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
         .asCallback(done)
-    }).timeout(opts.TIMEOUT)
+    }, !opts.NO_LOGS)
 
     it('should be succsefully built', (done) => {
       let statusCheck = () => {
@@ -498,7 +501,7 @@ describe('3. Rebuild Repo Container', () => {
         .asCallback(done)
     })
   })
-})
+}, !opts.NO_REBUILD)
 
 describe('4. Github Webhooks', () => {
   let branchName = 'test-branch-' + (new Date().getTime())
@@ -612,7 +615,7 @@ describe('4. Github Webhooks', () => {
         .asCallback(done)
     })
   })
-})
+}, !opts.NO_WEBHOOKS)
 
 describe('5. Container To Container DNS', () => {
   describe('Repo Instance', () => {
@@ -633,14 +636,14 @@ describe('5. Container To Container DNS', () => {
     })
   })
 
-  xdescribe('Service Instance', () => {
+  describe('Service Instance', () => {
     it('should connect to the master branch repo instance', (done) => {
     })
 
     it('should connect to the creaated branch repo instance', (done) => {
     })
-  })
-})
+  }, false)
+}, !opts.NO_DNS)
 
 describe('6. Navi URLs', () => {
 
@@ -674,4 +677,4 @@ describe('6. Navi URLs', () => {
         .asCallback(done)
     })
   })
-})
+}, !opts.NO_NAVI)
