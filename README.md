@@ -25,7 +25,12 @@ CLI options are passed as follows: `npm start -- --bool --num 1`
 
 1. Environment: `--staging`, `--gamma`, `--beta`, `--epsilon`, `--delta`
 2. Timeout: `--timeout NUMBER`
-2. Github Auth Token: `--auth-token AUTH_TOKEN`
+3. Github Auth Token: `--auth-token AUTH_TOKEN`
+4. No cleanup: `--no_cleanup`
+5. Don't run tests for rebuild without cache: `--no_rebuild`
+6. Don't run tests for Github webhooks: `--no_webhooks`
+7. Don't run tests for container to container DNS: `--no_dns`
+8. Don't run tests for outside requests: `--no_navi`
 
 ## ENV opts (CLI opts override these)
 
