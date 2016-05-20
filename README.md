@@ -34,7 +34,7 @@ CLI options are passed as follows: `npm start -- --bool --num 1`
 | Don't run tests for container to container DNS | `--no_dns`                                               |
 | Don't run tests for outside requests           | `--no_navi`                                              |
 
-## ENV opts (CLI opts override these)
+### ENV opts (CLI opts override these)
 
 1. `API_URL`
 2. `API_SOCKET_SERVER`
