@@ -35,7 +35,7 @@ let repoInstanceForIsolation
 
 let isolation
 let isolatedServiceInstance
-let isolatedRepoBranchInstance
+let isolatedRepoInstance
 
 let build
 let ref
@@ -881,9 +881,9 @@ describe('5. Isolation', () => {
           expect(isolatedServiceContainers).to.have.lengthOf(1)
           expect(isolatedRepoContainers).to.have.lengthOf(1)
           isolatedServiceInstance = isolatedServiceContainers[0]
-          isolatedRepoBranchInstance = isolatedRepoContainers[0]
+          isolatedRepoInstance = isolatedRepoContainers[0]
           promisifyClientModel(isolatedServiceInstance)
-          promisifyClientModel(isolatedRepoBranchInstance)
+          promisifyClientModel(isolatedRepoInstance)
         })
         .asCallback(done)
     })
@@ -942,11 +942,11 @@ describe('5. Isolation', () => {
 
       it('should have a dockerContainer', (done) => {
         let statusCheck = () => {
-          if (isolatedRepoBranchInstance.attrs.container.dockerContainer) {
-            container = isolatedRepoBranchInstance.attrs.container
+          if (isolatedRepoInstance.attrs.container.dockerContainer) {
+            container = isolatedRepoInstance.attrs.container
             return done()
           }
-          isolatedRepoBranchInstance.fetchAsync()
+          isolatedRepoInstance.fetchAsync()
           return delay(500)
             .then(() => statusCheck())
         }
@@ -955,7 +955,7 @@ describe('5. Isolation', () => {
 
       it('should get logs for that container', (done) => {
         // TODO: Improve test to test only build logs
-        let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, isolatedRepoBranchInstance.attrs.contextVersion.id)
+        let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, isolatedRepoInstance.attrs.contextVersion.id)
         let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
         return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
           .asCallback(done)
@@ -963,8 +963,8 @@ describe('5. Isolation', () => {
 
       it('should be successfully built', (done) => {
         let statusCheck = () => {
-          if (isolatedRepoBranchInstance.status() === 'running') return done()
-          isolatedRepoBranchInstance.fetchAsync()
+          if (isolatedRepoInstance.status() === 'running') return done()
+          isolatedRepoInstance.fetchAsync()
           return delay(500)
             .then(() => statusCheck())
         }
@@ -979,25 +979,35 @@ describe('5. Isolation', () => {
     })
   })
 
-}, true)
+}, opts.ISOLATION)
 
 describe('6. Container To Container DNS', () => {
+  let socket
+  before(() => {
+    socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
+  })
+
   describe('Repo Instance', () => {
-    it('should connect to the service container from the master branch', (done) => {
-      let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
+    it('should connect to the container from the master branch', (done) => {
       let container = repoInstance.attrs.container
       let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', opts.REPO_CONTAINER_MATCH)
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
         .asCallback(done)
     })
 
-    it('should connect to the service container from the created branch', (done) => {
-      let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
+    it('should connect to the container from the newly created branch (if not isolated)', (done) => {
       let container = repoBranchInstance.attrs.container
       let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', opts.REPO_CONTAINER_MATCH)
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
         .asCallback(done)
-    })
+    }, !opts.ISOLATION) // Doesn't work for isolation for some reason
+
+    it('should connect to the isolated container from the isolated branch', (done) => {
+      let container = isolatedRepoInstance.attrs.container
+      let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', opts.REPO_CONTAINER_MATCH)
+      return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+        .asCallback(done)
+    }, opts.ISOLATION) // Doesn't work for isolation for some reason
   })
 
   describe('Service Instance', () => {
