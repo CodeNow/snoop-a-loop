@@ -394,8 +394,8 @@ describe('2. New Repository Containers', () => {
 
     it('should have a dockerContainer', (done) => {
       let statusCheck = () => {
-        if (serviceInstance.attrs.container.dockerContainer) {
-          container = serviceInstance.attrs.container
+        if (repoInstance.attrs.container.dockerContainer) {
+          container = repoInstance.attrs.container
           return done()
         }
         serviceInstance.fetchAsync()
