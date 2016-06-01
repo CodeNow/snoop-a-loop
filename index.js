@@ -181,7 +181,7 @@ describe('1. New Service Containers', () => {
 
     it('should have a dockerContainer', (done) => {
       let statusCheck = () => {
-        if (serviceInstance.attrs.container && serviceInstance.attrs.container.dockerContainer) {
+        if (keypather.get(serviceInstance, 'attrs.container.dockerContainer')) {
           container = serviceInstance.attrs.container
           return done()
         }
@@ -401,7 +401,7 @@ describe('2. New Repository Containers', () => {
 
     it('should have a dockerContainer', (done) => {
       let statusCheck = () => {
-        if (repoInstance.attrs.container.dockerContainer) {
+        if (keypather.get(repoInstance, 'attrs.container.dockerContainer')) {
           container = repoInstance.attrs.container
           return done()
         }
@@ -809,7 +809,7 @@ describe('5. Isolation', () => {
 
       it('should have a dockerContainer', (done) => {
         let statusCheck = () => {
-          if (repoInstanceForIsolation.attrs.container.dockerContainer) {
+          if (keypather.get(repoInstanceForIsolation, 'attrs.container.dockerContainer')) {
             container = repoInstanceForIsolation.attrs.container
             return done()
           }
@@ -897,7 +897,7 @@ describe('5. Isolation', () => {
 
       it('should have a dockerContainer', (done) => {
         let statusCheck = () => {
-          if (isolatedServiceInstance.attrs.container.dockerContainer) {
+          if (keypather.get(isolatedServiceInstance, 'attrs.container.dockerContainer')) {
             container = isolatedServiceInstance.attrs.container
             return done()
           }
@@ -942,7 +942,7 @@ describe('5. Isolation', () => {
 
       it('should have a dockerContainer', (done) => {
         let statusCheck = () => {
-          if (isolatedRepoInstance.attrs.container.dockerContainer) {
+          if (keypather.get(isolatedRepoInstance, 'attrs.container.dockerContainer')) {
             container = isolatedRepoInstance.attrs.container
             return done()
           }
