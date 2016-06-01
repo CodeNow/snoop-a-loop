@@ -33,6 +33,7 @@ CLI options are passed as follows: `npm start -- --bool --num 1`
 | Don't run tests for Github webhooks            | `--no_webhooks`                                          |
 | Don't run tests for container to container DNS | `--no_dns`                                               |
 | Don't run tests for outside requests           | `--no_navi`                                              |
+| Test isolation                                 | `--isolation`                                            |
 
 ### ENV opts (CLI opts override these)
 
