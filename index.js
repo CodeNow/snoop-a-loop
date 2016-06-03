@@ -813,7 +813,7 @@ describe('5. Isolation', () => {
             container = repoInstanceForIsolation.attrs.container
             return done()
           }
-          serviceInstance.fetchAsync()
+          repoInstanceForIsolation.fetchAsync()
           return delay(500)
             .then(() => statusCheck())
         }
