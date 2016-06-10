@@ -405,7 +405,7 @@ describe('2. New Repository Containers', () => {
           container = repoInstance.attrs.container
           return done()
         }
-        serviceInstance.fetchAsync()
+        repoInstance.fetchAsync()
         return delay(500)
           .then(() => statusCheck())
       }
