@@ -8,7 +8,7 @@ ENV PORT=80
 #Start: Main Repository
 ADD ["./GITHUB_REPO_NAME", "/GITHUB_REPO_NAME"]
 WORKDIR /GITHUB_REPO_NAME
-RUN npm install
+RUN npm install --production
 #End
 
 WORKDIR /GITHUB_REPO_NAME
