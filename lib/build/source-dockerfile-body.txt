@@ -6,9 +6,11 @@ FROM node:4.2.3
 ENV PORT=80
 
 #Start: Main Repository
-ADD ["./GITHUB_REPO_NAME", "/GITHUB_REPO_NAME"]
+ADD ["./GITHUB_REPO_NAME/package.json", "/GITHUB_REPO_NAME/package.json"]
 WORKDIR /GITHUB_REPO_NAME
 RUN npm install --production
+
+ADD ["./GITHUB_REPO_NAME", "/GITHUB_REPO_NAME"]
 #End
 
 WORKDIR /GITHUB_REPO_NAME
