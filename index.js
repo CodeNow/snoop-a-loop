@@ -25,12 +25,12 @@ const describe = require('./lib/utils/mocha').describe;
 const opts = require('./lib/utils/env-arg-parser')
 
 const DOCKERFILE_BODY = fs.readFileSync('./lib/build/source-dockerfile-body.txt').toString()
+const randInt = Math.floor(Math.random() * 1000)
 
 let client
 
 let serviceInstance
 let repoInstance
-let mirroredDockerfileRepoInstance
 let repoBranchInstance
 let repoInstanceForIsolation
 
@@ -40,7 +40,6 @@ let isolatedServiceInstance
 let isolatedRepoInstance
 
 let build
-let mirroredDockerfileBuild
 let ref
 
 const reqOpts = {
@@ -306,16 +305,6 @@ describe('2. New Repository Containers', () => {
           .asCallback(done)
       })
 
-      it('should fetch the stack analysis', (done) => {
-        let fullRepoName = opts.GITHUB_USERNAME + '/' + opts.GITHUB_REPO_NAME
-        client.client = Promise.promisifyAll(client.client)
-        return client.client.getAsync('/actions/analyze?repo=' + fullRepoName)
-          .then((stackAnalysis) => {
-            githubRepo.stackAnalysis = stackAnalysis
-          })
-          .asCallback(done)
-      })
-
       it('should copy the files', (done) => {
         return contextVersion.copyFilesFromSourceAsync(sourceInfraCodeVersion)
           .then(() => {
@@ -373,7 +362,7 @@ describe('2. New Repository Containers', () => {
         let serviceLink = opts.SERVICE_NAME.toUpperCase() + '=' + serviceInstance.getContainerHostname()
         return client.createInstanceAsync({
           masterPod: true,
-          name: opts.GITHUB_REPO_NAME + '-' + Math.floor(Math.random() * 1000),
+          name: opts.GITHUB_REPO_NAME + '-' + randInt,
           env: [
             serviceLink
           ],
@@ -452,6 +441,8 @@ describe('3. New Repository Containers created using a mirrored docker file', ()
   let contextVersion
   let contextVersionDockerfile
   let appCodeVersion
+  let mirroredDockerfileRepoInstance
+  let mirroredDockerfileBuild
 
   describe('Create A Container', () => {
     describe('Github', () => {
@@ -614,7 +605,7 @@ describe('3. New Repository Containers created using a mirrored docker file', ()
         let serviceLink = opts.SERVICE_NAME.toUpperCase() + '=' + serviceInstance.getContainerHostname()
         return client.createInstanceAsync({
           masterPod: true,
-          name: opts.GITHUB_REPO_NAME + '-' + Math.floor(Math.random() * 1000),
+          name: opts.GITHUB_REPO_NAME + '-mirrored-dockerfile-container-' + randInt,
           env: [
             serviceLink
           ],
@@ -1029,7 +1020,7 @@ describe('6. Isolation', () => {
           let serviceLink = opts.SERVICE_NAME.toUpperCase() + '=' + serviceInstance.getContainerHostname()
           return client.createInstanceAsync({
             masterPod: true,
-            name: opts.GITHUB_REPO_NAME + '-for-isolation-' + Math.floor(Math.random() * 1000),
+            name: opts.GITHUB_REPO_NAME + '-for-isolation-' + randInt,
             env: [
               serviceLink
             ],
