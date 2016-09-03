@@ -22,6 +22,7 @@ const promisifyClientModel = require('./lib/utils/promisify-client-model')
 const opts = require('./lib/utils/env-arg-parser')
 
 const DOCKERFILE_BODY = fs.readFileSync('./lib/build/source-dockerfile-body.txt').toString()
+const randInt = Math.floor(Math.random() * 1000)
 
 let client
 
@@ -29,6 +30,7 @@ let serviceInstance
 let repoInstance
 let repoBranchInstance
 let repoInstanceForIsolation
+
 
 let isolation
 let isolatedServiceInstance
@@ -348,7 +350,7 @@ describe('2. New Repository Containers', () => {
         let serviceLink = opts.SERVICE_NAME.toUpperCase() + '=' + serviceInstance.getContainerHostname()
         return client.createInstanceAsync({
           masterPod: true,
-          name: opts.GITHUB_REPO_NAME + '-' + Math.floor(Math.random() * 1000),
+          name: opts.GITHUB_REPO_NAME + '-' + randInt,
           env: [
             serviceLink
           ],
@@ -414,7 +416,257 @@ describe('2. New Repository Containers', () => {
   })
  })
 
-describe('3. Rebuild Repo Container', function () {
+describe('3. New Repository Containers created using a mirrored docker file', function () {
+  let githubOrg
+  let githubRepo
+  let githubBranch
+  let sourceContext
+  let sourceContextVersion
+  let sourceInfraCodeVersion
+  let context
+  let contextVersion
+  let contextVersionDockerfile
+  let appCodeVersion
+  let mirroredDockerfileRepoInstance
+  let mirroredDockerfileBuild
+
+  describe('Create A Container', () => {
+    describe('Github', () => {
+      it('should create a github org', () => {
+        githubOrg = Promise.promisifyAll(client.newGithubOrg(opts.GITHUB_USERNAME))
+      })
+
+      it('should fetch a github branch', (done) => {
+        return githubOrg.fetchRepoAsync(opts.GITHUB_REPO_NAME, reqOpts)
+          .then((_githubRepo) => {
+            githubRepo = Promise.promisifyAll(client.newGithubRepo(_githubRepo))
+          })
+          .asCallback(done)
+      })
+
+      it('should fetch a github repo branch', (done) => {
+        return githubRepo.fetchBranchAsync('master', reqOpts)
+          .then((_branch) => {
+            githubBranch = _branch
+          })
+          .asCallback(done)
+      })
+    })
+
+    describe('Source Context', (done) => {
+      it('should fetch the source context', (done) => {
+        return client.fetchContextsAsync({ isSource: true })
+          .then((sourceContexts) => {
+            sourceContext = sourceContexts.models.find((x) => x.attrs.lowerName.match(/nodejs/i))
+            promisifyClientModel(sourceContext)
+          })
+          .asCallback(done)
+      })
+
+      it('should fetch the source context versions', (done) => {
+        return sourceContext.fetchVersionsAsync({ qs: { sort: '-created' }})
+          .then((versions) => {
+            sourceContextVersion = versions.models[0]
+            promisifyClientModel(sourceContextVersion)
+            sourceInfraCodeVersion = sourceContextVersion.attrs.infraCodeVersion;
+            promisifyClientModel(sourceInfraCodeVersion)
+          })
+          .asCallback(done)
+      })
+    })
+
+    describe('Context & Context Versions', () => {
+      it('should create a context', (done) => {
+        client.createContextAsync({
+          name: uuid.v4(),
+          'owner.github': opts.GITHUB_OAUTH_ID,
+          owner: {
+            github: opts.GITHUB_OAUTH_ID
+          }
+        })
+        .then((results) => {
+          context = results
+          promisifyClientModel(context)
+        })
+        .asCallback(done)
+      })
+
+      it('should create a context version', (done) => {
+        return context.createVersionAsync({
+          source: sourceContextVersion.attrs.id
+        })
+          .then((returned) => {
+            contextVersion = returned
+            promisifyClientModel(contextVersion)
+            return contextVersion.fetchAsync()
+          })
+          .asCallback(done)
+      })
+
+      it ('should update the context version when the dockerfile is mirrored', (done) => {
+        let contextVersionId = contextVersion.attrs._id
+        let contextId = contextVersion.attrs.context
+
+        return contextVersion.updateAsync({
+          advanced: true,
+          buildDockerfilePath: '/Dockerfile'
+        })
+          .then((returned) => {
+            let newContext = returned.response.body
+            expect(newContext.buildDockerfilePath).to.equal('/Dockerfile')
+            return contextVersion.deepCopyAsync()
+          })
+          .then((returned) => {
+            let newContext = returned.attrs
+            expect(newContext._id).to.not.equal(contextVersionId)
+            expect(newContext.context).to.equal(contextId)
+          })
+          .asCallback(done)
+        })
+
+      it('should fetch the stack analysis', (done) => {
+        let fullRepoName = opts.GITHUB_USERNAME + '/' + opts.GITHUB_REPO_NAME
+        client.client = Promise.promisifyAll(client.client)
+        return client.client.getAsync('/actions/analyze?repo=' + fullRepoName)
+          .then((stackAnalysis) => {
+            githubRepo.stackAnalysis = stackAnalysis
+          })
+          .asCallback(done)
+      })
+
+      it('should copy the files', (done) => {
+        return contextVersion.copyFilesFromSourceAsync(sourceInfraCodeVersion)
+          .then(() => {
+            return sourceContextVersion.fetchFileAsync('/Dockerfile')
+          })
+          .then((dockerfile) => {
+            contextVersionDockerfile = Promise.promisifyAll(contextVersion.newFile(dockerfile))
+            return contextVersionDockerfile.updateAsync({
+              json: {
+                body: DOCKERFILE_BODY.replace(new RegExp('GITHUB_REPO_NAME', 'g'), opts.GITHUB_REPO_NAME)
+              }
+            })
+          })
+          .asCallback(done)
+      })
+
+      it('should create an AppCodeVersion', (done) => {
+        return contextVersion.createAppCodeVersionAsync({
+          repo: githubRepo.attrs.full_name,
+          branch: githubBranch.name,
+          commit: githubBranch.commit.sha
+        })
+        .then((acv) => {
+          appCodeVersion = acv
+        })
+        .asCallback(done)
+      })
+    })
+
+    describe('Builds & Instances', () => {
+      it('should create a build for a context version', (done) => {
+        return client.createBuildAsync({
+          contextVersions: [contextVersion.id()],
+          owner: {
+            github: opts.GITHUB_OAUTH_ID
+          }
+        })
+        .then((rtn) => {
+          mirroredDockerfileBuild = rtn
+          promisifyClientModel(mirroredDockerfileBuild)
+          mirroredDockerfileBuild.contextVersion = contextVersion
+          return mirroredDockerfileBuild.fetchAsync()
+        })
+        .asCallback(done)
+      })
+
+      it('should build the build', (done) => {
+        return mirroredDockerfileBuild.buildAsync({
+          message: 'Initial Build'
+        })
+          .asCallback(done)
+      })
+
+      it('should create an instance', (done) => {
+        let serviceLink = opts.SERVICE_NAME.toUpperCase() + '=' + serviceInstance.getContainerHostname()
+        return client.createInstanceAsync({
+          masterPod: true,
+          name: opts.GITHUB_REPO_NAME + '-mirrored-dockerfile-container-' + randInt,
+          env: [
+            serviceLink
+          ],
+          ipWhitelist: {
+            enabled: false
+          },
+          owner: {
+            github: opts.GITHUB_OAUTH_ID
+          },
+          build: mirroredDockerfileBuild.id()
+        })
+          .then((rtn) => {
+            mirroredDockerfileRepoInstance = rtn
+            promisifyClientModel(mirroredDockerfileRepoInstance)
+            return mirroredDockerfileRepoInstance.fetchAsync()
+          })
+          .asCallback(done)
+      })
+    })
+  })
+
+  describe('Working Container', () => {
+    let socket
+    let container
+    before(() => {
+      socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
+    })
+
+    it('should have a dockerContainer', (done) => {
+      let statusCheck = () => {
+        if (keypather.get(mirroredDockerfileRepoInstance, 'attrs.container.dockerContainer')) {
+          container = mirroredDockerfileRepoInstance.attrs.container
+          return done()
+        }
+        mirroredDockerfileRepoInstance.fetchAsync()
+        return delay(500)
+          .then(() => statusCheck())
+      }
+      return statusCheck()
+    })
+
+    it('should get logs for that container', (done) => {
+      // TODO: Improve test to test only build logs
+      let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, mirroredDockerfileRepoInstance.attrs.contextVersion.id)
+      let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
+      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
+        .asCallback(done)
+    }, !opts.NO_LOGS)
+
+    it('should be successfully built', (done) => {
+      let statusCheck = () => {
+        if (mirroredDockerfileRepoInstance.status() === 'running') return done()
+        mirroredDockerfileRepoInstance.fetchAsync()
+        return delay(500)
+          .then(() => statusCheck())
+      }
+      return statusCheck()
+    })
+
+    it('should have a working terminal', (done) => {
+      let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
+      return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+        .asCallback(done)
+    })
+
+    it('should reflect the mirrored dockerfile configuration', (done) => {
+      let testMirroredDockerfile = socketUtils.createTestTerminal(socket, container, 'sleep 1 && printenv\n', /IS_MIRRORED_DOCKERFILE/)
+      return testMirroredDockerfile()
+        .asCallback(done)
+    })
+  })
+ })
+
+
+describe('4. Rebuild Repo Container', () => {
   if (opts.NO_REBUILD) this.pending = true
 
   let newBuild
@@ -485,9 +737,8 @@ describe('3. Rebuild Repo Container', function () {
   })
 })
 
-describe('4. Github Webhooks', function () {
+describe('5. Github Webhooks', function () {
   if (opts.NO_WEBHOOKS) this.pending = true
-
   let branchName = 'test-branch-' + (new Date().getTime())
   let refName = 'refs/heads/' + branchName
   let userName
@@ -597,7 +848,7 @@ describe('4. Github Webhooks', function () {
   })
 })
 
-describe('5. Isolation', function () {
+describe('6. Isolation', function () {
   if (!opts.ISOLATION) this.pending = true
 
   describe('Create Container To Isolate', () => {
@@ -741,7 +992,7 @@ describe('5. Isolation', function () {
           let serviceLink = opts.SERVICE_NAME.toUpperCase() + '=' + serviceInstance.getContainerHostname()
           return client.createInstanceAsync({
             masterPod: true,
-            name: opts.GITHUB_REPO_NAME + '-for-isolation-' + Math.floor(Math.random() * 1000),
+            name: opts.GITHUB_REPO_NAME + '-for-isolation-' + randInt,
             env: [
               serviceLink
             ],
@@ -938,19 +1189,18 @@ describe('5. Isolation', function () {
 
 })
 
-describe('6. Container To Container DNS', function () {
+describe('7. Container To Container DNS', function () {
   if (opts.NO_DNS) this.pending = true
   this.retries(5)
   this.timeout(3000)
-
   let socket
+
   before(() => {
     socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
   })
 
   describe('Repo Instance', () => {
     it('should connect to the container from the master branch', function () {
-      console.log('!! retry')
       let container = repoInstance.attrs.container
       let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', opts.REPO_CONTAINER_MATCH)
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
@@ -980,7 +1230,7 @@ describe('6. Container To Container DNS', function () {
   })
 })
 
-describe('7. Navi URLs', function () {
+describe('8. Navi URLs', function () {
   if (opts.NO_NAVI) this.pending = true
 
   describe('Repo Instance', () => {
