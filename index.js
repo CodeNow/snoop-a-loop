@@ -18,9 +18,6 @@ const Runnable = require('@runnable/api-client')
 const socketUtils = require('./lib/socket/utils.js')
 const promisifyClientModel = require('./lib/utils/promisify-client-model')
 
-const it = require('./lib/utils/mocha').it;
-const describe = require('./lib/utils/mocha').describe;
-
 // Parse ENVs and passed args
 const opts = require('./lib/utils/env-arg-parser')
 
@@ -64,7 +61,9 @@ after((done) => {
     // .asCallback(done)
 // })
 
-describe('Cleanup', () => {
+describe('Cleanup', function () {
+  if (opts.NO_CLEANUP) return this.skip()
+
   let repoInstances
   let serviceInstances
 
@@ -92,7 +91,7 @@ describe('Cleanup', () => {
     return Promise.all(repoInstances.map((x) => x.destroyAsync()))
       .asCallback(done)
   })
-}, !opts.NO_CLEANUP)
+})
 
 describe('1. New Service Containers', () => {
   let sourceInstance
@@ -438,7 +437,9 @@ describe('2. New Repository Containers', () => {
   })
  })
 
-describe('3. Rebuild Repo Container', () => {
+describe('3. Rebuild Repo Container', function () {
+  if (opts.NO_REBUILD) return this.skip()
+
   let newBuild
   describe('Rebuilding without Cache', () => {
     it('should deep copy the build', (done) => {
@@ -508,9 +509,11 @@ describe('3. Rebuild Repo Container', () => {
         .asCallback(done)
     })
   })
-}, !opts.NO_REBUILD)
+})
 
-describe('4. Github Webhooks', () => {
+describe('4. Github Webhooks', function () {
+  if (opts.NO_WEBHOOKS) return this.skip()
+
   let branchName = 'test-branch-' + (new Date().getTime())
   let refName = 'refs/heads/' + branchName
   let userName
@@ -622,9 +625,10 @@ describe('4. Github Webhooks', () => {
         .asCallback(done)
     })
   })
-}, !opts.NO_WEBHOOKS)
+})
 
-describe('5. Isolation', () => {
+describe('5. Isolation', function () {
+  if (opts.NO_ISOLATION) return this.skip()
 
   describe('Create Container To Isolate', () => {
     let githubOrg
@@ -979,9 +983,11 @@ describe('5. Isolation', () => {
     })
   })
 
-}, opts.ISOLATION)
+})
 
-describe('6. Container To Container DNS', () => {
+describe('6. Container To Container DNS', function () {
+  if (opts.NO_DNS) return this.skip()
+
   let socket
   before(() => {
     socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
@@ -1017,9 +1023,10 @@ describe('6. Container To Container DNS', () => {
     it('should connect to the creaated branch repo instance', (done) => {
     })
   }, false)
-}, !opts.NO_DNS)
+})
 
-describe('7. Navi URLs', () => {
+describe('7. Navi URLs', function () {
+  if (opts.NO_NAVI) return this.skip()
 
   describe('Repo Instance', () => {
     it('should access the main container', (done) => {
@@ -1051,4 +1058,4 @@ describe('7. Navi URLs', () => {
         .asCallback(done)
     })
   })
-}, !opts.NO_NAVI)
+})
