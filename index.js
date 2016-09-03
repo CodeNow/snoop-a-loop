@@ -191,13 +191,14 @@ describe('1. New Service Containers', () => {
       return statusCheck()
     })
 
-    it('should get logs for that container', (done) => {
+    it('should get logs for that container', function (done) {
+      if (opts.NO_LOGS) return this.skip()
       // TODO: Improve test to test only build logs
      let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, serviceInstance.attrs.contextVersion.id)
       let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /running.*rethinkdb/i)
       return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
         .asCallback(done)
-    }, !opts.NO_LOGS)
+    })
 
     it('should be succsefully built', (done) => {
       let statusCheck = () => {
@@ -411,13 +412,14 @@ describe('2. New Repository Containers', () => {
       return statusCheck()
     })
 
-    it('should get logs for that container', (done) => {
+    it('should get logs for that container', function (done) {
+      if (opts.NO_LOGS) return this.skip()
       // TODO: Improve test to test only build logs
       let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, repoInstance.attrs.contextVersion.id)
       let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
       return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
         .asCallback(done)
-    }, !opts.NO_LOGS)
+    })
 
     it('should be successfully built', (done) => {
       let statusCheck = () => {
@@ -481,7 +483,8 @@ describe('3. Rebuild Repo Container', function () {
       return containerCheck()
     }).timeout(opts.TIMEOUT)
 
-    it('should get logs for that container', (done) => {
+    it('should get logs for that container', function (done) {
+      if (opts.NO_LOGS) return this.skip()
       // TODO: Improve test to test only build logs
       let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
       let container = repoInstance.attrs.container
@@ -489,7 +492,7 @@ describe('3. Rebuild Repo Container', function () {
       let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
       return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
         .asCallback(done)
-    }, !opts.NO_LOGS)
+    })
 
     it('should be succsefully built', (done) => {
       let statusCheck = () => {
@@ -824,13 +827,14 @@ describe('5. Isolation', function () {
         return statusCheck()
       })
 
-      it('should get logs for that container', (done) => {
+      it('should get logs for that container', function (done) {
+        if (opts.NO_LOGS) return this.skip()
         // TODO: Improve test to test only build logs
         let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, repoInstanceForIsolation.attrs.contextVersion.id)
         let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
         return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
           .asCallback(done)
-      }, !opts.NO_LOGS)
+      })
 
       it('should be successfully built', (done) => {
         let statusCheck = () => {
@@ -912,13 +916,14 @@ describe('5. Isolation', function () {
         return statusCheck()
       })
 
-      it('should get logs for that container', (done) => {
+      it('should get logs for that container', function (done) {
+        if (opts.NO_LOGS) return this.skip()
         // TODO: Improve test to test only build logs
         let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, isolatedServiceInstance.attrs.contextVersion.id)
         let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
         return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
           .asCallback(done)
-      }, !opts.NO_LOGS)
+      })
 
       it('should be successfully built', (done) => {
         let statusCheck = () => {
@@ -957,13 +962,14 @@ describe('5. Isolation', function () {
         return statusCheck()
       })
 
-      it('should get logs for that container', (done) => {
+      it('should get logs for that container', function (done) {
+        if (opts.NO_LOGS) return this.skip()
         // TODO: Improve test to test only build logs
         let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, isolatedRepoInstance.attrs.contextVersion.id)
         let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
         return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
           .asCallback(done)
-      }, !opts.NO_LOGS)
+      })
 
       it('should be successfully built', (done) => {
         let statusCheck = () => {
@@ -1002,27 +1008,29 @@ describe('6. Container To Container DNS', function () {
     })
 
     it('should connect to the container from the newly created branch (if not isolated)', (done) => {
+      if (opts.ISOLATION) return this.skip()
       let container = repoBranchInstance.attrs.container
       let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', opts.REPO_CONTAINER_MATCH)
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
         .asCallback(done)
-    }, !opts.ISOLATION) // Doesn't work for isolation for some reason
+    }) // Doesn't work for isolation for some reason
 
-    it('should connect to the isolated container from the isolated branch', (done) => {
+    it('should connect to the isolated container from the isolated branch', function (done) {
+      if (!opts.ISOLATION) return this.skip()
       let container = isolatedRepoInstance.attrs.container
       let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', opts.REPO_CONTAINER_MATCH)
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
         .asCallback(done)
-    }, opts.ISOLATION) // Doesn't work for isolation for some reason
+    }) // Doesn't work for isolation for some reason
   })
 
-  describe('Service Instance', () => {
+  describe.skip('Service Instance', function () {
     it('should connect to the master branch repo instance', (done) => {
     })
 
     it('should connect to the creaated branch repo instance', (done) => {
     })
-  }, false)
+  })
 })
 
 describe('7. Navi URLs', function () {
