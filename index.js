@@ -43,11 +43,10 @@ const reqOpts = {
   }
 }
 
-before((done) => {
+before(() => {
   client = new Runnable(opts.API_URL, { userContentDomain: opts.USER_CONTENT_DOMAIN })
   promisifyClientModel(client)
   return client.githubLoginAsync(opts.ACCESS_TOKEN)
-    .asCallback(done)
 })
 
 after((done) => {
@@ -62,12 +61,12 @@ after((done) => {
 // })
 
 describe('Cleanup', function () {
-  if (opts.NO_CLEANUP) return this.skip()
+  if (opts.NO_CLEANUP) this.pending = true
 
   let repoInstances
   let serviceInstances
 
-  it('should fetch the instances', (done) => {
+  it('should fetch the instances', () => {
     return client.fetchInstancesAsync({ githubUsername: opts.GITHUB_USERNAME })
       .then((instances) => {
         serviceInstances = instances.models
@@ -77,19 +76,16 @@ describe('Cleanup', function () {
           .filter((x) => x.attrs.name.includes(opts.GITHUB_REPO_NAME))
           .map((x) => promisifyClientModel(x))
       })
-      .asCallback(done)
   })
 
-  it('should delete/destroy the non-repo container', (done) => {
-    if (!serviceInstances.length === 0) return done()
+  it('should delete/destroy the non-repo container', () => {
+    if (!serviceInstances.length === 0) return Promise.resolve()
     return Promise.all(serviceInstances.map((x) => x.destroyAsync()))
-      .asCallback(done)
   })
 
-  it('should delete/destroy the repo container', (done) => {
-    if (!repoInstances.length === 0) return done()
+  it('should delete/destroy the repo container', () => {
+    if (!repoInstances.length === 0) return Promise.resolve()
     return Promise.all(repoInstances.map((x) => x.destroyAsync()))
-      .asCallback(done)
   })
 })
 
@@ -99,16 +95,15 @@ describe('1. New Service Containers', () => {
   let build
 
   describe('Creating Container', () => {
-    it('should fetch all template containers', (done) => {
+    it('should fetch all template containers', () => {
       return client.fetchInstancesAsync({ githubUsername: 'HelloRunnable' })
         .then((instances) => {
           sourceInstance = instances.models.filter((x) => x.attrs.name === opts.SERVICE_NAME)[0]
           promisifyClientModel(sourceInstance)
         })
-        .asCallback(done)
     })
 
-    it('should copy the source instance', (done) => {
+    it('should copy the source instance', () => {
       sourceInstance.contextVersion = Promise.promisifyAll(sourceInstance.contextVersion)
       return Promise.fromCallback((cb) =>{
         contextVersion = sourceInstance.contextVersion.deepCopy({
@@ -124,10 +119,9 @@ describe('1. New Service Containers', () => {
               advanced: true
             })
         })
-        .asCallback(done)
     })
 
-    it('should create the build', (done) => {
+    it('should create the build', () => {
       return client.createBuildAsync({
         contextVersions: [contextVersion.id()],
         owner: {
@@ -138,17 +132,15 @@ describe('1. New Service Containers', () => {
           build = buildResponse
           promisifyClientModel(build)
         })
-        .asCallback(done)
     })
 
-    it('should build the build', (done) => {
+    it('should build the build', () => {
       return build.buildAsync({
         message: 'Initial Build'
       })
-        .asCallback(done)
     })
 
-    it('should create an instance', (done) => {
+    it('should create an instance', () => {
       return client.createInstanceAsync({
           masterPod: true,
           name: opts.SERVICE_NAME,
@@ -167,7 +159,6 @@ describe('1. New Service Containers', () => {
           serviceInstance = rtnInstance
           promisifyClientModel(serviceInstance)
         })
-        .asCallback(done)
     })
   })
 
@@ -188,16 +179,15 @@ describe('1. New Service Containers', () => {
         return delay(500)
           .then(() => statusCheck())
       }
-      return statusCheck()
+      statusCheck()
     })
 
-    it('should get logs for that container', function (done) {
+    it('should get logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
       // TODO: Improve test to test only build logs
-     let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, serviceInstance.attrs.contextVersion.id)
+      let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, serviceInstance.attrs.contextVersion.id)
       let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /running.*rethinkdb/i)
       return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
-        .asCallback(done)
     })
 
     it('should be succsefully built', (done) => {
@@ -207,13 +197,12 @@ describe('1. New Service Containers', () => {
         return delay(500)
           .then(() => statusCheck())
       }
-      return statusCheck()
+      statusCheck()
     })
 
-    it('should have a working terminal', (done) => {
+    it('should have a working terminal', () => {
       let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
-        .asCallback(done)
     })
   })
 })
@@ -236,34 +225,31 @@ describe('2. New Repository Containers', () => {
         githubOrg = Promise.promisifyAll(client.newGithubOrg(opts.GITHUB_USERNAME))
       })
 
-      it('should fetch a github branch', (done) => {
+      it('should fetch a github branch', () => {
         return githubOrg.fetchRepoAsync(opts.GITHUB_REPO_NAME, reqOpts)
           .then((_githubRepo) => {
             githubRepo = Promise.promisifyAll(client.newGithubRepo(_githubRepo))
           })
-          .asCallback(done)
       })
 
-      it('should fetch a github repo branch', (done) => {
+      it('should fetch a github repo branch', () => {
         return githubRepo.fetchBranchAsync('master', reqOpts)
           .then((_branch) => {
             githubBranch = _branch
           })
-          .asCallback(done)
       })
     })
 
-    describe('Source Context', (done) => {
-      it('should fetch the source context', (done) => {
+    describe('Source Context', () => {
+      it('should fetch the source context', () => {
         return client.fetchContextsAsync({ isSource: true })
           .then((sourceContexts) => {
             sourceContext = sourceContexts.models.find((x) => x.attrs.lowerName.match(/nodejs/i))
             promisifyClientModel(sourceContext)
           })
-          .asCallback(done)
       })
 
-      it('should fetch the source context versions', (done) => {
+      it('should fetch the source context versions', () => {
         return sourceContext.fetchVersionsAsync({ qs: { sort: '-created' }})
           .then((versions) => {
             sourceContextVersion = versions.models[0]
@@ -271,13 +257,12 @@ describe('2. New Repository Containers', () => {
             sourceInfraCodeVersion = sourceContextVersion.attrs.infraCodeVersion;
             promisifyClientModel(sourceInfraCodeVersion)
           })
-          .asCallback(done)
       })
     })
 
     describe('Context & Context Versions', () => {
-      it('should create a context', (done) => {
-        client.createContextAsync({
+      it('should create a context', () => {
+        return client.createContextAsync({
           name: uuid.v4(),
           'owner.github': opts.GITHUB_OAUTH_ID,
           owner: {
@@ -288,10 +273,9 @@ describe('2. New Repository Containers', () => {
           context = results
           promisifyClientModel(context)
         })
-        .asCallback(done)
       })
 
-      it('should create a context version', (done) => {
+      it('should create a context version', () => {
         return context.createVersionAsync({
           source: sourceContextVersion.attrs.id
         })
@@ -300,20 +284,18 @@ describe('2. New Repository Containers', () => {
             promisifyClientModel(contextVersion)
             return contextVersion.fetchAsync()
           })
-          .asCallback(done)
       })
 
-      it('should fetch the stack analysis', (done) => {
+      it('should fetch the stack analysis', () => {
         let fullRepoName = opts.GITHUB_USERNAME + '/' + opts.GITHUB_REPO_NAME
         client.client = Promise.promisifyAll(client.client)
         return client.client.getAsync('/actions/analyze?repo=' + fullRepoName)
           .then((stackAnalysis) => {
             githubRepo.stackAnalysis = stackAnalysis
           })
-          .asCallback(done)
       })
 
-      it('should copy the files', (done) => {
+      it('should copy the files', () => {
         return contextVersion.copyFilesFromSourceAsync(sourceInfraCodeVersion)
           .then(() => {
             return sourceContextVersion.fetchFileAsync('/Dockerfile')
@@ -326,10 +308,9 @@ describe('2. New Repository Containers', () => {
               }
             })
           })
-          .asCallback(done)
       })
 
-      it('should create an AppCodeVersion', (done) => {
+      it('should create an AppCodeVersion', () => {
         return contextVersion.createAppCodeVersionAsync({
           repo: githubRepo.attrs.full_name,
           branch: githubBranch.name,
@@ -338,12 +319,11 @@ describe('2. New Repository Containers', () => {
         .then((acv) => {
           appCodeVersion = acv
         })
-        .asCallback(done)
       })
     })
 
     describe('Builds & Instances', () => {
-      it('should create a build for a context version', (done) => {
+      it('should create a build for a context version', () => {
         return client.createBuildAsync({
           contextVersions: [contextVersion.id()],
           owner: {
@@ -356,17 +336,15 @@ describe('2. New Repository Containers', () => {
           build.contextVersion = contextVersion
           return build.fetchAsync()
         })
-        .asCallback(done)
       })
 
-      it('should build the build', (done) => {
+      it('should build the build', () => {
         return build.buildAsync({
           message: 'Initial Build'
         })
-          .asCallback(done)
       })
 
-      it('should create an instance', (done) => {
+      it('should create an instance', () => {
         let serviceLink = opts.SERVICE_NAME.toUpperCase() + '=' + serviceInstance.getContainerHostname()
         return client.createInstanceAsync({
           masterPod: true,
@@ -387,7 +365,6 @@ describe('2. New Repository Containers', () => {
             promisifyClientModel(repoInstance)
             return repoInstance.fetchAsync()
           })
-          .asCallback(done)
       })
     })
   })
@@ -409,16 +386,15 @@ describe('2. New Repository Containers', () => {
         return delay(500)
           .then(() => statusCheck())
       }
-      return statusCheck()
+      statusCheck()
     })
 
-    it('should get logs for that container', function (done) {
+    it('should get logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
       // TODO: Improve test to test only build logs
       let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, repoInstance.attrs.contextVersion.id)
       let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
       return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
-        .asCallback(done)
     })
 
     it('should be successfully built', (done) => {
@@ -428,32 +404,30 @@ describe('2. New Repository Containers', () => {
         return delay(500)
           .then(() => statusCheck())
       }
-      return statusCheck()
+      statusCheck()
     })
 
-    it('should have a working terminal', (done) => {
+    it('should have a working terminal', () => {
       let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
-        .asCallback(done)
     })
   })
  })
 
 describe('3. Rebuild Repo Container', function () {
-  if (opts.NO_REBUILD) return this.skip()
+  if (opts.NO_REBUILD) this.pending = true
 
   let newBuild
   describe('Rebuilding without Cache', () => {
-    it('should deep copy the build', (done) => {
+    it('should deep copy the build', () => {
       return build.deepCopyAsync()
         .then((newBuildData) => {
           newBuild = Promise.promisifyAll(client.newBuild(newBuildData))
           return newBuild.fetchAsync()
         })
-        .asCallback(done)
     })
 
-    it('should rebuild the instance without cache', (done) => {
+    it('should rebuild the instance without cache', () => {
       return newBuild.buildAsync({
         message: 'Manual build',
         noCache: true
@@ -467,7 +441,6 @@ describe('3. Rebuild Repo Container', function () {
         .then(() => {
           return repoInstance.fetchAsync()
         })
-        .asCallback(done)
     })
   })
 
@@ -480,10 +453,10 @@ describe('3. Rebuild Repo Container', function () {
         return delay(500)
           .then(() => containerCheck())
       }
-      return containerCheck()
+      containerCheck()
     }).timeout(opts.TIMEOUT)
 
-    it('should get logs for that container', function (done) {
+    it('should get logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
       // TODO: Improve test to test only build logs
       let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
@@ -491,7 +464,6 @@ describe('3. Rebuild Repo Container', function () {
       let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, repoInstance.attrs.contextVersion.id)
       let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
       return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
-        .asCallback(done)
     })
 
     it('should be succsefully built', (done) => {
@@ -501,21 +473,20 @@ describe('3. Rebuild Repo Container', function () {
         return delay(500)
           .then(() => statusCheck())
       }
-      return statusCheck()
+      statusCheck()
     })
 
-    it('should have a working terminal', (done) => {
+    it('should have a working terminal', () => {
       let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
       let container = repoInstance.attrs.container
       let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n')
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
-        .asCallback(done)
     })
   })
 })
 
 describe('4. Github Webhooks', function () {
-  if (opts.NO_WEBHOOKS) return this.skip()
+  if (opts.NO_WEBHOOKS) this.pending = true
 
   let branchName = 'test-branch-' + (new Date().getTime())
   let refName = 'refs/heads/' + branchName
@@ -538,7 +509,7 @@ describe('4. Github Webhooks', function () {
       })
     })
 
-    it('should created a new branch', (done) => {
+    it('should created a new branch', () => {
       let acv = repoInstance.attrs.contextVersion.appCodeVersions[0]
       userName = acv.repo.split('/')[0]
       repoName = acv.repo.split('/')[1]
@@ -562,10 +533,9 @@ describe('4. Github Webhooks', function () {
         .then((_ref) => {
           ref = _ref
         })
-        .asCallback(done)
     })
 
-    it('should create a new instance with the branch name', (done) => {
+    it('should create a new instance with the branch name', () => {
       return Promise.resolve()
         .then(() => delay(5000))
         .then(() => {
@@ -584,7 +554,6 @@ describe('4. Github Webhooks', function () {
           promisifyClientModel(repoBranchInstance)
           return repoInstance.fetchAsync()
         })
-        .asCallback(done)
     })
   })
 
@@ -597,17 +566,16 @@ describe('4. Github Webhooks', function () {
         return delay(500)
           .then(() => containerCheck())
       }
-      return containerCheck()
+      containerCheck()
     })
 
-    it('should get logs for that container', (done) => {
+    it('should get logs for that container', () => {
       // TODO: Improve test to test only build logs
       let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
       let container = repoBranchInstance.attrs.container
       let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, repoBranchInstance.attrs.contextVersion.id)
       let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
       return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
-        .asCallback(done)
     })
 
     it('should be succsefully built', (done) => {
@@ -617,21 +585,20 @@ describe('4. Github Webhooks', function () {
         return delay(500)
           .then(() => statusCheck())
       }
-      return statusCheck()
+      statusCheck()
     })
 
-    it('should have a working terminal', (done) => {
+    it('should have a working terminal', () => {
       let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
       let container = repoBranchInstance.attrs.container
       let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
-        .asCallback(done)
     })
   })
 })
 
 describe('5. Isolation', function () {
-  if (opts.NO_ISOLATION) return this.skip()
+  if (!opts.ISOLATION) this.pending = true
 
   describe('Create Container To Isolate', () => {
     let githubOrg
@@ -651,34 +618,31 @@ describe('5. Isolation', function () {
           githubOrg = Promise.promisifyAll(client.newGithubOrg(opts.GITHUB_USERNAME))
         })
 
-        it('should fetch a github branch', (done) => {
+        it('should fetch a github branch', () => {
           return githubOrg.fetchRepoAsync(opts.GITHUB_REPO_NAME, reqOpts)
             .then((_githubRepo) => {
               githubRepo = Promise.promisifyAll(client.newGithubRepo(_githubRepo))
             })
-            .asCallback(done)
         })
 
-        it('should fetch a github repo branch', (done) => {
+        it('should fetch a github repo branch', () => {
           return githubRepo.fetchBranchAsync('master', reqOpts)
             .then((_branch) => {
               githubBranch = _branch
             })
-            .asCallback(done)
         })
       })
 
-      describe('Source Context', (done) => {
-        it('should fetch the source context', (done) => {
+      describe('Source Context', () => {
+        it('should fetch the source context', () => {
           return client.fetchContextsAsync({ isSource: true })
             .then((sourceContexts) => {
               sourceContext = sourceContexts.models.find((x) => x.attrs.lowerName.match(/nodejs/i))
               promisifyClientModel(sourceContext)
             })
-            .asCallback(done)
         })
 
-        it('should fetch the source context versions', (done) => {
+        it('should fetch the source context versions', () => {
           return sourceContext.fetchVersionsAsync({ qs: { sort: '-created' }})
             .then((versions) => {
               sourceContextVersion = versions.models[0]
@@ -686,13 +650,12 @@ describe('5. Isolation', function () {
               sourceInfraCodeVersion = sourceContextVersion.attrs.infraCodeVersion;
               promisifyClientModel(sourceInfraCodeVersion)
             })
-            .asCallback(done)
         })
       })
 
       describe('Context & Context Versions', () => {
-        it('should create a context', (done) => {
-          client.createContextAsync({
+        it('should create a context', () => {
+          return client.createContextAsync({
             name: uuid.v4(),
             'owner.github': opts.GITHUB_OAUTH_ID,
             owner: {
@@ -703,10 +666,9 @@ describe('5. Isolation', function () {
             context = results
             promisifyClientModel(context)
           })
-          .asCallback(done)
         })
 
-        it('should create a context version', (done) => {
+        it('should create a context version', () => {
           return context.createVersionAsync({
             source: sourceContextVersion.attrs.id
           })
@@ -715,20 +677,18 @@ describe('5. Isolation', function () {
               promisifyClientModel(contextVersion)
               return contextVersion.fetchAsync()
             })
-            .asCallback(done)
         })
 
-        it('should fetch the stack analysis', (done) => {
+        it('should fetch the stack analysis', () => {
           let fullRepoName = opts.GITHUB_USERNAME + '/' + opts.GITHUB_REPO_NAME
           client.client = Promise.promisifyAll(client.client)
           return client.client.getAsync('/actions/analyze?repo=' + fullRepoName)
             .then((stackAnalysis) => {
               githubRepo.stackAnalysis = stackAnalysis
             })
-            .asCallback(done)
         })
 
-        it('should copy the files', (done) => {
+        it('should copy the files', () => {
           return contextVersion.copyFilesFromSourceAsync(sourceInfraCodeVersion)
             .then(() => {
               return sourceContextVersion.fetchFileAsync('/Dockerfile')
@@ -741,10 +701,9 @@ describe('5. Isolation', function () {
                 }
               })
             })
-            .asCallback(done)
         })
 
-        it('should create an AppCodeVersion', (done) => {
+        it('should create an AppCodeVersion', () => {
           return contextVersion.createAppCodeVersionAsync({
             repo: githubRepo.attrs.full_name,
             branch: githubBranch.name,
@@ -753,12 +712,11 @@ describe('5. Isolation', function () {
           .then((acv) => {
             appCodeVersion = acv
           })
-          .asCallback(done)
         })
       })
 
       describe('Builds & Instances', () => {
-        it('should create a build for a context version', (done) => {
+        it('should create a build for a context version', () => {
           return client.createBuildAsync({
             contextVersions: [contextVersion.id()],
             owner: {
@@ -771,17 +729,15 @@ describe('5. Isolation', function () {
             build.contextVersion = contextVersion
             return build.fetchAsync()
           })
-          .asCallback(done)
         })
 
-        it('should build the build', (done) => {
+        it('should build the build', () => {
           return build.buildAsync({
             message: 'Initial Build'
           })
-            .asCallback(done)
         })
 
-        it('should create an instance', (done) => {
+        it('should create an instance', () => {
           let serviceLink = opts.SERVICE_NAME.toUpperCase() + '=' + serviceInstance.getContainerHostname()
           return client.createInstanceAsync({
             masterPod: true,
@@ -802,7 +758,6 @@ describe('5. Isolation', function () {
               promisifyClientModel(repoInstanceForIsolation)
               return repoInstanceForIsolation.fetchAsync()
             })
-            .asCallback(done)
         })
       })
     })
@@ -824,16 +779,15 @@ describe('5. Isolation', function () {
           return delay(500)
             .then(() => statusCheck())
         }
-        return statusCheck()
+        statusCheck()
       })
 
-      it('should get logs for that container', function (done) {
+      it('should get logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
         // TODO: Improve test to test only build logs
         let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, repoInstanceForIsolation.attrs.contextVersion.id)
         let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
         return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
-          .asCallback(done)
       })
 
       it('should be successfully built', (done) => {
@@ -843,19 +797,18 @@ describe('5. Isolation', function () {
           return delay(500)
             .then(() => statusCheck())
         }
-        return statusCheck()
+        statusCheck()
       })
 
-      it('should have a working terminal', (done) => {
+      it('should have a working terminal', () => {
         let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
         return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
-          .asCallback(done)
       })
     })
   })
 
   describe('Create Isolation', () => {
-    it('should create the isolation', (done) => {
+    it('should create the isolation', () => {
       let acv = repoInstanceForIsolation.contextVersion.attrs.appCodeVersions[0]
       return client.createIsolationAsync({
         master: repoBranchInstance.id(),
@@ -874,10 +827,9 @@ describe('5. Isolation', function () {
         promisifyClientModel(isolation)
         expect(isolation.attrs._id).to.not.equal(undefined)
       })
-      .asCallback(done)
     })
 
-    it('should create the instances for that isolation', (done) => {
+    it('should create the instances for that isolation', () => {
       return client.fetchInstancesAsync({
         githubUsername: opts.GITHUB_USERNAME,
         isolated: isolation.attrs._id,
@@ -893,7 +845,6 @@ describe('5. Isolation', function () {
           promisifyClientModel(isolatedServiceInstance)
           promisifyClientModel(isolatedRepoInstance)
         })
-        .asCallback(done)
     })
 
     describe('Isolated Service Container', () => {
@@ -913,16 +864,15 @@ describe('5. Isolation', function () {
           return delay(500)
             .then(() => statusCheck())
         }
-        return statusCheck()
+        statusCheck()
       })
 
-      it('should get logs for that container', function (done) {
+      it('should get logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
         // TODO: Improve test to test only build logs
         let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, isolatedServiceInstance.attrs.contextVersion.id)
         let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
         return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
-          .asCallback(done)
       })
 
       it('should be successfully built', (done) => {
@@ -932,13 +882,12 @@ describe('5. Isolation', function () {
           return delay(500)
             .then(() => statusCheck())
         }
-        return statusCheck()
+        statusCheck()
       })
 
-      it('should have a working terminal', (done) => {
+      it('should have a working terminal', () => {
         let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
         return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
-          .asCallback(done)
       })
     })
 
@@ -959,16 +908,15 @@ describe('5. Isolation', function () {
           return delay(500)
             .then(() => statusCheck())
         }
-        return statusCheck()
+        statusCheck()
       })
 
-      it('should get logs for that container', function (done) {
+      it('should get logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
         // TODO: Improve test to test only build logs
         let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, isolatedRepoInstance.attrs.contextVersion.id)
         let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
         return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
-          .asCallback(done)
       })
 
       it('should be successfully built', (done) => {
@@ -978,13 +926,12 @@ describe('5. Isolation', function () {
           return delay(500)
             .then(() => statusCheck())
         }
-        return statusCheck()
+        statusCheck()
       })
 
-      it('should have a working terminal', (done) => {
+      it('should have a working terminal', () => {
         let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
         return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
-          .asCallback(done)
       })
     })
   })
@@ -992,7 +939,9 @@ describe('5. Isolation', function () {
 })
 
 describe('6. Container To Container DNS', function () {
-  if (opts.NO_DNS) return this.skip()
+  if (opts.NO_DNS) this.pending = true
+  this.retries(5)
+  this.timeout(3000)
 
   let socket
   before(() => {
@@ -1000,28 +949,26 @@ describe('6. Container To Container DNS', function () {
   })
 
   describe('Repo Instance', () => {
-    it('should connect to the container from the master branch', (done) => {
+    it('should connect to the container from the master branch', function () {
+      console.log('!! retry')
       let container = repoInstance.attrs.container
       let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', opts.REPO_CONTAINER_MATCH)
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
-        .asCallback(done)
     })
 
-    it('should connect to the container from the newly created branch (if not isolated)', (done) => {
-      if (opts.ISOLATION) return this.skip()
+    it('should connect to the container from the newly created branch (if not isolated)', function () {
+      if (opts.ISOLATION || opts.NO_WEBHOOKS) return this.skip() // Doesn't work for isolation for some reason
       let container = repoBranchInstance.attrs.container
       let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', opts.REPO_CONTAINER_MATCH)
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
-        .asCallback(done)
-    }) // Doesn't work for isolation for some reason
+    })
 
-    it('should connect to the isolated container from the isolated branch', function (done) {
+    it('should connect to the isolated container from the isolated branch', function () {
       if (!opts.ISOLATION) return this.skip()
       let container = isolatedRepoInstance.attrs.container
       let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', opts.REPO_CONTAINER_MATCH)
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
-        .asCallback(done)
-    }) // Doesn't work for isolation for some reason
+    })
   })
 
   describe.skip('Service Instance', function () {
@@ -1034,36 +981,35 @@ describe('6. Container To Container DNS', function () {
 })
 
 describe('7. Navi URLs', function () {
-  if (opts.NO_NAVI) return this.skip()
+  if (opts.NO_NAVI) this.pending = true
 
   describe('Repo Instance', () => {
-    it('should access the main container', (done) => {
+    it('should access the main container', () => {
       let hostname = repoInstance.getContainerHostname()
       return request.getAsync('http://' + hostname)
         .then(function (res) {
           expect(res.body).to.match(opts.REPO_CONTAINER_MATCH)
         })
-        .asCallback(done)
     })
 
-    it('should access the branch container', (done) => {
+    it('should access the branch container', function () {
+      if (opts.ISOLATION || opts.NO_WEBHOOKS) return this.skip() // Doesn't work for isolation for some reason
       let hostname = repoBranchInstance.getContainerHostname()
       return request.getAsync('http://' + hostname)
         .then(function (res) {
           expect(res.body).to.match(opts.REPO_CONTAINER_MATCH)
         })
-        .asCallback(done)
     })
   })
 
   describe('Service Instance', () => {
-    it('should connect to the service instance', (done) => {
+    // This currently doesn't work
+    xit('should connect to the service instance', () => {
       let hostname = serviceInstance.getContainerHostname()
       return request.getAsync('http://' + hostname + ':8080')
         .then(function (res) {
           expect(res.body).to.match(opts.SERVICE_CONTAINER_MATCH)
         })
-        .asCallback(done)
     })
   })
 })

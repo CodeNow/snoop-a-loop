@@ -19,7 +19,7 @@
     "keypather": "^2.0.0",
     "loadenv": "^2.1.0",
     "lodash": "^4.11.1",
-    "mocha": "^2.4.5",
+    "mocha": "^2.5.3",
     "objectid": "^3.2.1",
     "request": "^2.70.0",
     "string.prototype.includes": "^1.0.0",
