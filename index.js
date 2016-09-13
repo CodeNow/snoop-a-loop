@@ -155,12 +155,18 @@ describe('1. New Service Containers', () => {
           owner: {
             github: opts.GITHUB_OAUTH_ID
           },
-          build: build.id(),
-          shouldNotAutofork: false
+          build: build.id()
         })
-        .then((rtnInstance) => {
-          serviceInstance = rtnInstance
+        .tap((instance) => {
+          promisifyClientModel(instance)
+          return instance.updateAsync({
+            shouldNotAutofork: false
+          })
+        })
+        .then((instance) => {
+          serviceInstance = instance
           promisifyClientModel(serviceInstance)
+          return serviceInstance
         })
     })
   })
@@ -603,8 +609,13 @@ describe('3. New Repository Containers created using a mirrored docker file', fu
             github: opts.GITHUB_OAUTH_ID
           },
           build: mirroredDockerfileBuild.id(),
-          shouldNotAutofork: false
         })
+          .tap((mirroredDockerfileRepoInstance) => {
+            promisifyClientModel(mirroredDockerfileRepoInstance)
+            return mirroredDockerfileRepoInstance.updateAsync({
+              shouldNotAutofork: false
+            })
+          })
           .then((rtn) => {
             mirroredDockerfileRepoInstance = rtn
             promisifyClientModel(mirroredDockerfileRepoInstance)
@@ -1005,8 +1016,13 @@ describe('6. Isolation', function () {
               github: opts.GITHUB_OAUTH_ID
             },
             build: build.id(),
-            shouldNotAutofork: false
           })
+            .tap((instance) => {
+              promisifyClientModel(instance)
+              return instance.updateAsync({
+                shouldNotAutofork: false
+              })
+            })
             .then((rtn) => {
               repoInstanceForIsolation = rtn
               promisifyClientModel(repoInstanceForIsolation)
