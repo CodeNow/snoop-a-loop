@@ -155,7 +155,8 @@ describe('1. New Service Containers', () => {
           owner: {
             github: opts.GITHUB_OAUTH_ID
           },
-          build: build.id()
+          build: build.id(),
+          shouldNotAutofork: false
         })
         .then((rtnInstance) => {
           serviceInstance = rtnInstance
@@ -601,7 +602,8 @@ describe('3. New Repository Containers created using a mirrored docker file', fu
           owner: {
             github: opts.GITHUB_OAUTH_ID
           },
-          build: mirroredDockerfileBuild.id()
+          build: mirroredDockerfileBuild.id(),
+          shouldNotAutofork: false
         })
           .then((rtn) => {
             mirroredDockerfileRepoInstance = rtn
@@ -1002,7 +1004,8 @@ describe('6. Isolation', function () {
             owner: {
               github: opts.GITHUB_OAUTH_ID
             },
-            build: build.id()
+            build: build.id(),
+            shouldNotAutofork: false
           })
             .then((rtn) => {
               repoInstanceForIsolation = rtn
