@@ -529,31 +529,10 @@ describe('3. New Repository Containers created using a mirrored docker file', fu
             expect(newContext.context).to.equal(contextId)
           })
           .asCallback(done)
-        })
-
-      it('should fetch the stack analysis', (done) => {
-        let fullRepoName = opts.GITHUB_USERNAME + '/' + opts.GITHUB_REPO_NAME
-        client.client = Promise.promisifyAll(client.client)
-        return client.client.getAsync('/actions/analyze?repo=' + fullRepoName)
-          .then((stackAnalysis) => {
-            githubRepo.stackAnalysis = stackAnalysis
-          })
-          .asCallback(done)
       })
 
       it('should copy the files', (done) => {
         return contextVersion.copyFilesFromSourceAsync(sourceInfraCodeVersion)
-          .then(() => {
-            return sourceContextVersion.fetchFileAsync('/Dockerfile')
-          })
-          .then((dockerfile) => {
-            contextVersionDockerfile = Promise.promisifyAll(contextVersion.newFile(dockerfile))
-            return contextVersionDockerfile.updateAsync({
-              json: {
-                body: DOCKERFILE_BODY.replace(new RegExp('GITHUB_REPO_NAME', 'g'), opts.GITHUB_REPO_NAME)
-              }
-            })
-          })
           .asCallback(done)
       })
 
