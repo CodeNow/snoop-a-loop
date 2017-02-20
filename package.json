@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "npm start",
-    "start": "./node_modules/mocha/bin/mocha -t 10000 -b index.js"
+    "start": "./node_modules/mocha/bin/mocha -t 10000 -b index.js --reporter progress",
+    "verbose": "./node_modules/mocha/bin/mocha -t 10000 -b index.js"
   },
   "author": "",
   "license": "ISC",

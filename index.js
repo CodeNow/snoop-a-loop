@@ -1253,7 +1253,7 @@ describe('8. Navi URLs', function () {
   })
 })
 
-xdescribe('9. New Service Containers with custom dockerfile', () => {
+describe('9. New Service Containers with custom dockerfile', () => {
   let githubOrg
   let githubRepo
   let githubBranch
