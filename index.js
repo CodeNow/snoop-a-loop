@@ -191,12 +191,17 @@ describe('1. New Service Containers', () => {
       statusCheck()
     })
 
-    it('should get logs for that container', function () {
+    it('should get build logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      // TODO: Improve test to test only build logs
-      let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, serviceInstance.attrs.contextVersion.id)
-      let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /running.*rethinkdb/i)
-      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
+      const buildContainerId = keypather.get(serviceInstance, 'attrs.contextVersion.build.dockerContainer')
+      let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
+      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
+    })
+
+    it('should get CMD logs for that container', function () {
+      if (opts.NO_LOGS) return this.skip()
+      let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /running.*rethinkdb/i, 'curl localhost')
+      return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
     })
 
     it('should be succsefully built', (done) => {
@@ -398,12 +403,17 @@ describe('2. New Repository Containers', () => {
       statusCheck()
     })
 
-    it('should get logs for that container', function () {
+    it('should get build logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      // TODO: Improve test to test only build logs
-      let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, repoInstance.attrs.contextVersion.id)
+      const buildContainerId = keypather.get(repoInstance, 'attrs.contextVersion.build.dockerContainer')
+      let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
+      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
+    })
+
+    it('should get CMD logs for that container', function () {
+      if (opts.NO_LOGS) return this.skip()
       let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
-      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
+      return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
     })
 
     it('should be successfully built', (done) => {
@@ -625,13 +635,20 @@ describe('3. New Repository Containers created using a mirrored docker file', fu
       return statusCheck()
     })
 
-    it('should get logs for that container', (done) => {
-      // TODO: Improve test to test only build logs
-      let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, mirroredDockerfileRepoInstance.attrs.contextVersion.id)
-      let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
-      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
+    it('should get build logs for that container', (done) => {
+      if (opts.NO_LOGS) return this.skip()
+      const buildContainerId = keypather.get(mirroredDockerfileRepoInstance, 'attrs.contextVersion.build.dockerContainer')
+      let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
+      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
         .asCallback(done)
-    }, !opts.NO_LOGS)
+    })
+
+    it('should get CMD logs for that container', (done) => {
+      if (opts.NO_LOGS) return this.skip()
+      let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
+      return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
+        .asCallback(done)
+    })
 
     it('should be successfully built', (done) => {
       let statusCheck = () => {
@@ -702,10 +719,10 @@ describe('4. Rebuild Repo Container', () => {
 
     it('should get logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      // TODO: Improve test to test only build logs
       let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
+      const buildContainerId = keypather.get(repoInstance, 'attrs.contextVersion.build.dockerContainer')
       let container = repoInstance.attrs.container
-      let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, repoInstance.attrs.contextVersion.id)
+      let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
       let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
       return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
     })
@@ -813,10 +830,10 @@ describe('5. Github Webhooks', function () {
     })
 
     it('should get logs for that container', () => {
-      // TODO: Improve test to test only build logs
+      if (opts.NO_LOGS) return this.skip()
       let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
       let container = repoBranchInstance.attrs.container
-      let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, repoBranchInstance.attrs.contextVersion.id)
+      let testBuildLogs = socketUtils.createTestBuildLogs(socket, container)
       let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
       return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
     })
@@ -1022,12 +1039,17 @@ describe('6. Isolation', function () {
         statusCheck()
       })
 
-      it('should get logs for that container', function () {
+      it('should get build logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
-        // TODO: Improve test to test only build logs
-        let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, repoInstanceForIsolation.attrs.contextVersion.id)
+        const buildContainerId = keypather.get(repoInstanceForIsolation, 'attrs.contextVersion.build.dockerContainer')
+        let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
+        return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
+      })
+
+      it('should get CMD logs for that container', function () {
+        if (opts.NO_LOGS) return this.skip()
         let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
-        return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
+        return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
       })
 
       it('should be successfully built', (done) => {
@@ -1107,12 +1129,17 @@ describe('6. Isolation', function () {
         statusCheck()
       })
 
-      it('should get logs for that container', function () {
+      it('should get build logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
-        // TODO: Improve test to test only build logs
-        let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, isolatedServiceInstance.attrs.contextVersion.id)
-        let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
-        return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
+        const buildContainerId = keypather.get(isolatedServiceInstance, 'attrs.contextVersion.build.dockerContainer')
+        let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
+        return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
+      })
+
+      it('should get CMD logs for that container', function () {
+        if (opts.NO_LOGS) return this.skip()
+        let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /Server ready/i)
+        return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
       })
 
       it('should be successfully built', (done) => {
@@ -1151,12 +1178,17 @@ describe('6. Isolation', function () {
         statusCheck()
       })
 
+      it('should get build logs for that container', function () {
+        if (opts.NO_LOGS) return this.skip()
+        const buildContainerId = keypather.get(isolatedRepoInstance, 'attrs.contextVersion.build.dockerContainer')
+        let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
+        return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
+      })
+
       it('should get logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
-        // TODO: Improve test to test only build logs
-        let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, isolatedRepoInstance.attrs.contextVersion.id)
         let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
-        return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
+        return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
       })
 
       it('should be successfully built', (done) => {
@@ -1180,7 +1212,7 @@ describe('6. Isolation', function () {
 
 describe('7. Container To Container DNS', function () {
   if (opts.NO_DNS) this.pending = true
-  this.retries(5)
+  //this.retries(5)
   this.timeout(3000)
   let socket
 
@@ -1196,7 +1228,9 @@ describe('7. Container To Container DNS', function () {
     })
 
     it('should connect to the container from the newly created branch (if not isolated)', function () {
-      if (opts.ISOLATION || opts.NO_WEBHOOKS) return this.skip() // Doesn't work for isolation for some reason
+      if (opts.ISOLATION || opts.NO_WEBHOOKS) {
+        return Promise.resolve() // Doesn't work for isolation for some reason
+      }
       let container = repoBranchInstance.attrs.container
       let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', opts.REPO_CONTAINER_MATCH)
       return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
@@ -1232,7 +1266,9 @@ describe('8. Navi URLs', function () {
     })
 
     it('should access the branch container', function () {
-      if (opts.ISOLATION || opts.NO_WEBHOOKS) return this.skip() // Doesn't work for isolation for some reason
+      if (opts.ISOLATION || opts.NO_WEBHOOKS) {
+        return Promise.resolve() // Doesn't work for isolation for some reason
+      }
       let hostname = repoBranchInstance.getContainerHostname()
       return request.getAsync('http://' + hostname)
         .then(function (res) {
@@ -1353,7 +1389,7 @@ describe('9. New Service Containers with custom dockerfile', () => {
       it('should create an instance', () => {
         return client.createInstanceAsync({
           masterPod: true,
-          name: 'dockerfileTEST-' + randInt,
+          name: opts.GITHUB_REPO_NAME + '-docker-' + randInt,
           env: [
             "WOW=YEYE"
           ],
@@ -1394,10 +1430,10 @@ describe('9. New Service Containers with custom dockerfile', () => {
       statusCheck()
     })
 
-    it('should get logs for that container', function () {
+    it('should get build logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      // TODO: Improve test to test only build logs
-      let testBuildLogs = socketUtils.createTestBuildLogs(socket, container, repoInstance.attrs.contextVersion.id)
+      const buildContainerId = keypather.get(repoInstance, 'attrs.contextVersion.build.dockerContainer')
+      let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
       let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
       return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
     })
