@@ -675,7 +675,7 @@ describe('3. New Repository Containers created using a mirrored docker file', fu
  })
 
 
-describe('4. Rebuild Repo Container', () => {
+describe('4. Rebuild Repo Container', function () {
   if (opts.NO_REBUILD) this.pending = true
 
   let newBuild
@@ -829,13 +829,20 @@ describe('5. Github Webhooks', function () {
       containerCheck()
     })
 
-    it('should get logs for that container', () => {
+    it('should get build logs for that container', function () {
+      if (opts.NO_LOGS) return this.skip()
+      const buildContainerId = keypather.get(repoBranchInstance, 'attrs.contextVersion.build.dockerContainer')
+      let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
+      let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
+      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
+    })
+
+    it('should get CMD logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
       let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
       let container = repoBranchInstance.attrs.container
-      let testBuildLogs = socketUtils.createTestBuildLogs(socket, container)
       let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
-      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
+      return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
     })
 
     it('should be succsefully built', (done) => {
