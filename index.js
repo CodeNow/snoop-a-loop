@@ -16,6 +16,9 @@ const PrimusClient = require('@runnable/api-client/lib/external/primus-client')
 const Runnable = require('@runnable/api-client')
 
 const socketUtils = require('./lib/socket/utils.js')
+const testBuildLogs = socketUtils.testBuildLogs
+const testCMDLogs = socketUtils.testCMDLogs
+const testTerminal = socketUtils.testTerminal
 const promisifyClientModel = require('./lib/utils/promisify-client-model')
 
 // Parse ENVs and passed args
@@ -49,18 +52,12 @@ before(() => {
   client = new Runnable(opts.API_URL, { userContentDomain: opts.USER_CONTENT_DOMAIN })
   promisifyClientModel(client)
   return client.githubLoginAsync(opts.ACCESS_TOKEN)
+    .then(() => opts.connectSid = client.connectSid)
 })
 
 after((done) => {
   client.logout(done)
 })
-
-// after((done) => {
-  // return request.delAsync(Object.assign(reqOpts, {
-    // url: ref.url + '?access_token=' + ACCESS_TOKEN,
-  // }))
-    // .asCallback(done)
-// })
 
 describe('Cleanup', function () {
   if (opts.NO_CLEANUP) this.pending = true
@@ -172,16 +169,15 @@ describe('1. New Service Containers', () => {
   })
 
   describe('Working Container', () => {
-    let socket
-    let container
-    before(() => {
-      socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
-    })
+    // let socket
+    // let container
+    // before(() => {
+      // socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
+    // })
 
     it('should have a dockerContainer', (done) => {
       let statusCheck = () => {
         if (keypather.get(serviceInstance, 'attrs.container.dockerContainer')) {
-          container = serviceInstance.attrs.container
           return done()
         }
         serviceInstance.fetchAsync()
@@ -193,15 +189,12 @@ describe('1. New Service Containers', () => {
 
     it('should get build logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      const buildContainerId = keypather.get(serviceInstance, 'attrs.contextVersion.build.dockerContainer')
-      let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
-      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
+      return testBuildLogs(serviceInstance)
     })
 
     it('should get CMD logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /running.*rethinkdb/i, 'curl localhost')
-      return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
+      return testCMDLogs(serviceInstance, /running.*rethinkdb/i)
     })
 
     it('should be succsefully built', (done) => {
@@ -215,8 +208,7 @@ describe('1. New Service Containers', () => {
     })
 
     it('should have a working terminal', () => {
-      let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
-      return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+      return testTerminal(serviceInstance)
     })
   })
 })
@@ -384,16 +376,10 @@ describe('2. New Repository Containers', () => {
   })
 
   describe('Working Container', () => {
-    let socket
-    let container
-    before(() => {
-      socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
-    })
 
     it('should have a dockerContainer', (done) => {
       let statusCheck = () => {
         if (keypather.get(repoInstance, 'attrs.container.dockerContainer')) {
-          container = repoInstance.attrs.container
           return done()
         }
         repoInstance.fetchAsync()
@@ -405,15 +391,12 @@ describe('2. New Repository Containers', () => {
 
     it('should get build logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      const buildContainerId = keypather.get(repoInstance, 'attrs.contextVersion.build.dockerContainer')
-      let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
-      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
+      return testBuildLogs(repoInstance)
     })
 
     it('should get CMD logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
-      return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
+      return testCMDLogs(repoInstance, /server.*running/i)
     })
 
     it('should be successfully built', (done) => {
@@ -427,8 +410,7 @@ describe('2. New Repository Containers', () => {
     })
 
     it('should have a working terminal', () => {
-      let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
-      return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+      return testTerminal(repoInstance)
     })
   })
  })
@@ -635,19 +617,14 @@ describe('3. New Repository Containers created using a mirrored docker file', fu
       return statusCheck()
     })
 
-    it('should get build logs for that container', (done) => {
+    it('should get build logs for that container', () => {
       if (opts.NO_LOGS) return this.skip()
-      const buildContainerId = keypather.get(mirroredDockerfileRepoInstance, 'attrs.contextVersion.build.dockerContainer')
-      let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
-      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
-        .asCallback(done)
+      return testBuildLogs(mirroredDockerfileRepoInstance)
     })
 
-    it('should get CMD logs for that container', (done) => {
+    it('should get CMD logs for that container', () => {
       if (opts.NO_LOGS) return this.skip()
-      let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
-      return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
-        .asCallback(done)
+      return testCMDLogs(mirroredDockerfileRepoInstance, /server.*running/i)
     })
 
     it('should be successfully built', (done) => {
@@ -660,16 +637,13 @@ describe('3. New Repository Containers created using a mirrored docker file', fu
       return statusCheck()
     })
 
-    it('should have a working terminal', (done) => {
-      let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
-      return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
-        .asCallback(done)
+    it('should have a working terminal', () => {
+      return testTerminal(mirroredDockerfileRepoInstance)
     })
 
-    it('should reflect the mirrored dockerfile configuration', (done) => {
+    it('should reflect the mirrored dockerfile configuration', () => {
       let testMirroredDockerfile = socketUtils.createTestTerminal(socket, container, 'sleep 1 && printenv\n', /IS_MIRRORED_DOCKERFILE/)
       return testMirroredDockerfile()
-        .asCallback(done)
     })
   })
  })
@@ -719,12 +693,7 @@ describe('4. Rebuild Repo Container', function () {
 
     it('should get logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
-      const buildContainerId = keypather.get(repoInstance, 'attrs.contextVersion.build.dockerContainer')
-      let container = repoInstance.attrs.container
-      let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
-      let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
-      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
+      return testBuildLogs(repoInstance)
     })
 
     it('should be succsefully built', (done) => {
@@ -738,10 +707,7 @@ describe('4. Rebuild Repo Container', function () {
     })
 
     it('should have a working terminal', () => {
-      let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
-      let container = repoInstance.attrs.container
-      let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n')
-      return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+      return testCMDLogs(repoInstance, /server.*running/i)
     })
   })
 })
@@ -831,18 +797,12 @@ describe('5. Github Webhooks', function () {
 
     it('should get build logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      const buildContainerId = keypather.get(repoBranchInstance, 'attrs.contextVersion.build.dockerContainer')
-      let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
-      let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
-      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
+      return testBuildLogs(repoBranchInstance)
     })
 
     it('should get CMD logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
-      let container = repoBranchInstance.attrs.container
-      let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
-      return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
+        return testCMDLogs(repoBranchInstance, /server.*running/i)
     })
 
     it('should be succsefully built', (done) => {
@@ -856,10 +816,7 @@ describe('5. Github Webhooks', function () {
     })
 
     it('should have a working terminal', () => {
-      let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
-      let container = repoBranchInstance.attrs.container
-      let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
-      return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+      return testTerminal(repoBranchInstance)
     })
   })
 })
@@ -1048,15 +1005,12 @@ describe('6. Isolation', function () {
 
       it('should get build logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
-        const buildContainerId = keypather.get(repoInstanceForIsolation, 'attrs.contextVersion.build.dockerContainer')
-        let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
-        return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
+        return testBuildLogs(repoInstanceForIsolation)
       })
 
       it('should get CMD logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
-        let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
-        return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
+        return testCMDLogs(repoInstanceForIsolation, /server.*running/i)
       })
 
       it('should be successfully built', (done) => {
@@ -1070,8 +1024,7 @@ describe('6. Isolation', function () {
       })
 
       it('should have a working terminal', () => {
-        let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
-        return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+        return testTerminal(repoInstanceForIsolation)
       })
     })
   })
@@ -1117,16 +1070,9 @@ describe('6. Isolation', function () {
     })
 
     describe('Isolated Service Container', () => {
-      let socket
-      let container
-      before(() => {
-        socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
-      })
-
       it('should have a dockerContainer', (done) => {
         let statusCheck = () => {
           if (keypather.get(isolatedServiceInstance, 'attrs.container.dockerContainer')) {
-            container = isolatedServiceInstance.attrs.container
             return done()
           }
           isolatedServiceInstance.fetchAsync()
@@ -1138,15 +1084,12 @@ describe('6. Isolation', function () {
 
       it('should get build logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
-        const buildContainerId = keypather.get(isolatedServiceInstance, 'attrs.contextVersion.build.dockerContainer')
-        let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
-        return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
+        return testBuildLogs(isolatedServiceInstance)
       })
 
       it('should get CMD logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
-        let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /Server ready/i)
-        return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
+        return testCMDLogs(isolatedServiceInstance, /running.*rethinkdb/i)
       })
 
       it('should be successfully built', (done) => {
@@ -1160,8 +1103,7 @@ describe('6. Isolation', function () {
       })
 
       it('should have a working terminal', () => {
-        let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
-        return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+        return testTerminal(isolatedServiceInstance)
       })
     })
 
@@ -1187,15 +1129,12 @@ describe('6. Isolation', function () {
 
       it('should get build logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
-        const buildContainerId = keypather.get(isolatedRepoInstance, 'attrs.contextVersion.build.dockerContainer')
-        let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
-        return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
+        return testBuildLogs(isolatedRepoInstance)
       })
 
       it('should get logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
-        let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
-        return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
+        return testCMDLogs(isolatedRepoInstance, /server.*running/i)
       })
 
       it('should be successfully built', (done) => {
@@ -1209,8 +1148,7 @@ describe('6. Isolation', function () {
       })
 
       it('should have a working terminal', () => {
-        let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
-        return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+        return testTerminal(isolatedRepoInstance, /server.*running/i)
       })
     })
   })
@@ -1439,10 +1377,12 @@ describe('9. New Service Containers with custom dockerfile', () => {
 
     it('should get build logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      const buildContainerId = keypather.get(repoInstance, 'attrs.contextVersion.build.dockerContainer')
-      let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
-      let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
-      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
+      return testBuildLogs(repoInstance)
+    })
+
+    it('should get build logs for that container', function () {
+      if (opts.NO_LOGS) return this.skip()
+      return testCMDLogs(repoInstance, /server.*running/i)
     })
 
     it('should be successfully built', (done) => {
@@ -1456,8 +1396,7 @@ describe('9. New Service Containers with custom dockerfile', () => {
     })
 
     it('should have a working terminal', () => {
-      let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
-      return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+      return testTerminal(repoInstance)
     })
   })
 })
