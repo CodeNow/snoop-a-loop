@@ -830,20 +830,20 @@ describe('5. Github Webhooks', function () {
     })
 
     it('should get build logs for that container', function () {
-        if (opts.NO_LOGS) return this.skip()
-        const buildContainerId = keypather.get(repoBranchInstance, 'attrs.contextVersion.build.dockerContainer')
-        let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
-        let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
-        return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
-      })
+      if (opts.NO_LOGS) return this.skip()
+      const buildContainerId = keypather.get(repoBranchInstance, 'attrs.contextVersion.build.dockerContainer')
+      let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
+      let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
+      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
+    })
 
-      it('should get CMD logs for that container', function () {
-        if (opts.NO_LOGS) return this.skip()
-        let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
-        let container = repoBranchInstance.attrs.container
-        let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
-        return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
-      })
+    it('should get CMD logs for that container', function () {
+      if (opts.NO_LOGS) return this.skip()
+      let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
+      let container = repoBranchInstance.attrs.container
+      let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
+      return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
+    })
 
     it('should be succsefully built', (done) => {
       let statusCheck = () => {
