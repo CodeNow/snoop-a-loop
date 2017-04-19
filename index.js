@@ -16,6 +16,12 @@ const PrimusClient = require('@runnable/api-client/lib/external/primus-client')
 const Runnable = require('@runnable/api-client')
 
 const socketUtils = require('./lib/socket/utils.js')
+const testBuildLogs = socketUtils.testBuildLogs
+const testCMDLogs = socketUtils.testCMDLogs
+const testTerminal = socketUtils.testTerminal
+const InstanceUtils = require('./lib/instance/util.js')
+const assertInstanceHasContainer = InstanceUtils.assertInstanceHasContainer
+const assertInstanceIsRunning = InstanceUtils.assertInstanceIsRunning
 const promisifyClientModel = require('./lib/utils/promisify-client-model')
 
 // Parse ENVs and passed args
@@ -30,7 +36,6 @@ let serviceInstance
 let repoInstance
 let repoBranchInstance
 let repoInstanceForIsolation
-
 
 let isolation
 let isolatedServiceInstance
@@ -49,18 +54,12 @@ before(() => {
   client = new Runnable(opts.API_URL, { userContentDomain: opts.USER_CONTENT_DOMAIN })
   promisifyClientModel(client)
   return client.githubLoginAsync(opts.ACCESS_TOKEN)
+    .then(() => opts.connectSid = client.connectSid)
 })
 
 after((done) => {
   client.logout(done)
 })
-
-// after((done) => {
-  // return request.delAsync(Object.assign(reqOpts, {
-    // url: ref.url + '?access_token=' + ACCESS_TOKEN,
-  // }))
-    // .asCallback(done)
-// })
 
 describe('Cleanup', function () {
   if (opts.NO_CLEANUP) this.pending = true
@@ -172,51 +171,26 @@ describe('1. New Service Containers', () => {
   })
 
   describe('Working Container', () => {
-    let socket
-    let container
-    before(() => {
-      socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
-    })
-
-    it('should have a dockerContainer', (done) => {
-      let statusCheck = () => {
-        if (keypather.get(serviceInstance, 'attrs.container.dockerContainer')) {
-          container = serviceInstance.attrs.container
-          return done()
-        }
-        serviceInstance.fetchAsync()
-        return delay(500)
-          .then(() => statusCheck())
-      }
-      statusCheck()
+    it('should have a dockerContainer', () => {
+      return assertInstanceHasContainer(serviceInstance)
     })
 
     it('should get build logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      const buildContainerId = keypather.get(serviceInstance, 'attrs.contextVersion.build.dockerContainer')
-      let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
-      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
+      return testBuildLogs(serviceInstance)
     })
 
     it('should get CMD logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /running.*rethinkdb/i, 'curl localhost')
-      return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
+      return testCMDLogs(serviceInstance, /running.*rethinkdb/i)
     })
 
-    it('should be succsefully built', (done) => {
-      let statusCheck = () => {
-        if (serviceInstance.status() === 'running') return done()
-        serviceInstance.fetchAsync()
-        return delay(500)
-          .then(() => statusCheck())
-      }
-      statusCheck()
+    it('should be succsefully built', () => {
+      return assertInstanceIsRunning(serviceInstance)
     })
 
     it('should have a working terminal', () => {
-      let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
-      return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+      return testTerminal(serviceInstance)
     })
   })
 })
@@ -384,51 +358,27 @@ describe('2. New Repository Containers', () => {
   })
 
   describe('Working Container', () => {
-    let socket
-    let container
-    before(() => {
-      socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
-    })
 
-    it('should have a dockerContainer', (done) => {
-      let statusCheck = () => {
-        if (keypather.get(repoInstance, 'attrs.container.dockerContainer')) {
-          container = repoInstance.attrs.container
-          return done()
-        }
-        repoInstance.fetchAsync()
-        return delay(500)
-          .then(() => statusCheck())
-      }
-      statusCheck()
+    it('should have a dockerContainer', () => {
+      return assertInstanceHasContainer(repoInstance)
     })
 
     it('should get build logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      const buildContainerId = keypather.get(repoInstance, 'attrs.contextVersion.build.dockerContainer')
-      let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
-      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
+      return testBuildLogs(repoInstance)
     })
 
     it('should get CMD logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
-      return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
+      return testCMDLogs(repoInstance, /server.*running/i)
     })
 
-    it('should be successfully built', (done) => {
-      let statusCheck = () => {
-        if (repoInstance.status() === 'running') return done()
-        repoInstance.fetchAsync()
-        return delay(500)
-          .then(() => statusCheck())
-      }
-      statusCheck()
+    it('should be running', () => {
+      return assertInstanceIsRunning(repoInstance)
     })
 
     it('should have a working terminal', () => {
-      let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
-      return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+      return testTerminal(repoInstance)
     })
   })
  })
@@ -616,60 +566,33 @@ describe('3. New Repository Containers created using a mirrored docker file', fu
   })
 
   describe('Working Container', () => {
-    let socket
-    let container
-    before(() => {
-      socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
+    it('should have a dockerContainer', () => {
+      return assertInstanceHasContainer(mirroredDockerfileRepoInstance)
     })
 
-    it('should have a dockerContainer', (done) => {
-      let statusCheck = () => {
-        if (keypather.get(mirroredDockerfileRepoInstance, 'attrs.container.dockerContainer')) {
-          container = mirroredDockerfileRepoInstance.attrs.container
-          return done()
-        }
-        mirroredDockerfileRepoInstance.fetchAsync()
-        return delay(500)
-          .then(() => statusCheck())
-      }
-      return statusCheck()
-    })
-
-    it('should get build logs for that container', (done) => {
+    it('should get build logs for that container', () => {
       if (opts.NO_LOGS) return this.skip()
-      const buildContainerId = keypather.get(mirroredDockerfileRepoInstance, 'attrs.contextVersion.build.dockerContainer')
-      let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
-      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
-        .asCallback(done)
+      return testBuildLogs(mirroredDockerfileRepoInstance)
     })
 
-    it('should get CMD logs for that container', (done) => {
+    it('should get CMD logs for that container', () => {
       if (opts.NO_LOGS) return this.skip()
-      let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
-      return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
-        .asCallback(done)
+      return testCMDLogs(mirroredDockerfileRepoInstance, /server.*running/i)
     })
 
-    it('should be successfully built', (done) => {
-      let statusCheck = () => {
-        if (mirroredDockerfileRepoInstance.status() === 'running') return done()
-        mirroredDockerfileRepoInstance.fetchAsync()
-        return delay(500)
-          .then(() => statusCheck())
-      }
-      return statusCheck()
+    it('should be successfully built', () => {
+      return assertInstanceIsRunning(mirroredDockerfileRepoInstance)
     })
 
-    it('should have a working terminal', (done) => {
-      let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
-      return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
-        .asCallback(done)
+    it('should have a working terminal', () => {
+      return testTerminal(mirroredDockerfileRepoInstance)
     })
 
-    it('should reflect the mirrored dockerfile configuration', (done) => {
+    it('should reflect the mirrored dockerfile configuration', () => {
+      let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER)
+      let container = mirroredDockerfileRepoInstance.attrs.container
       let testMirroredDockerfile = socketUtils.createTestTerminal(socket, container, 'sleep 1 && printenv\n', /IS_MIRRORED_DOCKERFILE/)
       return testMirroredDockerfile()
-        .asCallback(done)
     })
   })
  })
@@ -706,42 +629,21 @@ describe('4. Rebuild Repo Container', function () {
   })
 
   describe('Working Container', () => {
-    it('should have a container', (done) => {
-      // NOTE: Is there a better way of doing this?
-      let containerCheck = () => {
-        if (repoInstance.attrs.container) return done()
-        repoInstance.fetchAsync()
-        return delay(500)
-          .then(() => containerCheck())
-      }
-      containerCheck()
+    it('should have a container', () => {
+      return assertInstanceHasContainer(repoInstance)
     }).timeout(opts.TIMEOUT)
 
     it('should get logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
-      const buildContainerId = keypather.get(repoInstance, 'attrs.contextVersion.build.dockerContainer')
-      let container = repoInstance.attrs.container
-      let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
-      let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
-      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
+      return testBuildLogs(repoInstance)
     })
 
-    it('should be succsefully built', (done) => {
-      let statusCheck = () => {
-        if (repoInstance.status() === 'running') return done()
-        repoInstance.fetchAsync()
-        return delay(500)
-          .then(() => statusCheck())
-      }
-      statusCheck()
+    it('should be succsefully built', () => {
+      return assertInstanceIsRunning(repoInstance)
     })
 
     it('should have a working terminal', () => {
-      let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
-      let container = repoInstance.attrs.container
-      let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n')
-      return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+      return testCMDLogs(repoInstance, /server.*running/i)
     })
   })
 })
@@ -819,47 +721,25 @@ describe('5. Github Webhooks', function () {
 
   describe('Working Container', () => {
     it('should have a container', (done) => {
-      // NOTE: Is there a better way of doing this?
-      let containerCheck = () => {
-        if (repoBranchInstance.attrs.container) return done()
-        repoBranchInstance.fetchAsync()
-        return delay(500)
-          .then(() => containerCheck())
-      }
-      containerCheck()
+      return assertInstanceHasContainer(repoBranchInstance)
     })
 
     it('should get build logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      const buildContainerId = keypather.get(repoBranchInstance, 'attrs.contextVersion.build.dockerContainer')
-      let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
-      let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
-      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
+      return testBuildLogs(repoBranchInstance)
     })
 
     it('should get CMD logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
-      let container = repoBranchInstance.attrs.container
-      let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
-      return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
+        return testCMDLogs(repoBranchInstance, /server.*running/i)
     })
 
-    it('should be succsefully built', (done) => {
-      let statusCheck = () => {
-        if (repoBranchInstance.status() === 'running') return done()
-        repoBranchInstance.fetchAsync()
-        return delay(500)
-          .then(() => statusCheck())
-      }
-      statusCheck()
+    it('should be succsefully built', () => {
+      return assertInstanceIsRunning(repoBranchInstance)
     })
 
     it('should have a working terminal', () => {
-      let socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
-      let container = repoBranchInstance.attrs.container
-      let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
-      return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+      return testTerminal(repoBranchInstance)
     })
   })
 })
@@ -1027,51 +907,26 @@ describe('6. Isolation', function () {
     })
 
     describe('Working Container', () => {
-      let socket
-      let container
-      before(() => {
-        socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
-      })
-
       it('should have a dockerContainer', (done) => {
-        let statusCheck = () => {
-          if (keypather.get(repoInstanceForIsolation, 'attrs.container.dockerContainer')) {
-            container = repoInstanceForIsolation.attrs.container
-            return done()
-          }
-          repoInstanceForIsolation.fetchAsync()
-          return delay(500)
-            .then(() => statusCheck())
-        }
-        statusCheck()
+        return assertInstanceHasContainer(repoInstanceForIsolation)
       })
 
       it('should get build logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
-        const buildContainerId = keypather.get(repoInstanceForIsolation, 'attrs.contextVersion.build.dockerContainer')
-        let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
-        return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
+        return testBuildLogs(repoInstanceForIsolation)
       })
 
       it('should get CMD logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
-        let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
-        return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
+        return testCMDLogs(repoInstanceForIsolation, /server.*running/i)
       })
 
       it('should be successfully built', (done) => {
-        let statusCheck = () => {
-          if (repoInstanceForIsolation.status() === 'running') return done()
-          repoInstanceForIsolation.fetchAsync()
-          return delay(500)
-            .then(() => statusCheck())
-        }
-        statusCheck()
+        return assertInstanceIsRunning(repoInstanceForIsolation)
       })
 
       it('should have a working terminal', () => {
-        let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
-        return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+        return testTerminal(repoInstanceForIsolation)
       })
     })
   })
@@ -1117,100 +972,50 @@ describe('6. Isolation', function () {
     })
 
     describe('Isolated Service Container', () => {
-      let socket
-      let container
-      before(() => {
-        socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
-      })
-
       it('should have a dockerContainer', (done) => {
-        let statusCheck = () => {
-          if (keypather.get(isolatedServiceInstance, 'attrs.container.dockerContainer')) {
-            container = isolatedServiceInstance.attrs.container
-            return done()
-          }
-          isolatedServiceInstance.fetchAsync()
-          return delay(500)
-            .then(() => statusCheck())
-        }
-        statusCheck()
+        return assertInstanceHasContainer(isolatedServiceInstance)
       })
 
       it('should get build logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
-        const buildContainerId = keypather.get(isolatedServiceInstance, 'attrs.contextVersion.build.dockerContainer')
-        let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
-        return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
+        return testBuildLogs(isolatedServiceInstance)
       })
 
       it('should get CMD logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
-        let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /Server ready/i)
-        return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
+        return testCMDLogs(isolatedServiceInstance, /running.*rethinkdb/i)
       })
 
       it('should be successfully built', (done) => {
-        let statusCheck = () => {
-          if (isolatedServiceInstance.status() === 'running') return done()
-          isolatedServiceInstance.fetchAsync()
-          return delay(500)
-            .then(() => statusCheck())
-        }
-        statusCheck()
+        return assertInstanceIsRunning(isolatedServiceInstance)
       })
 
       it('should have a working terminal', () => {
-        let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
-        return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+        return testTerminal(isolatedServiceInstance)
       })
     })
 
     describe('Isolated Repo Container', () => {
-      let socket
-      let container
-      before(() => {
-        socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
-      })
-
       it('should have a dockerContainer', (done) => {
-        let statusCheck = () => {
-          if (keypather.get(isolatedRepoInstance, 'attrs.container.dockerContainer')) {
-            container = isolatedRepoInstance.attrs.container
-            return done()
-          }
-          isolatedRepoInstance.fetchAsync()
-          return delay(500)
-            .then(() => statusCheck())
-        }
-        statusCheck()
+        return assertInstanceHasContainer(isolatedRepoInstance)
       })
 
       it('should get build logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
-        const buildContainerId = keypather.get(isolatedRepoInstance, 'attrs.contextVersion.build.dockerContainer')
-        let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
-        return Promise.race([socketUtils.failureHandler(socket), testBuildLogs()])
+        return testBuildLogs(isolatedRepoInstance)
       })
 
       it('should get logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
-        let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
-        return Promise.race([socketUtils.failureHandler(socket), testCmdLogs()])
+        return testCMDLogs(isolatedRepoInstance, /server.*running/i)
       })
 
       it('should be successfully built', (done) => {
-        let statusCheck = () => {
-          if (isolatedRepoInstance.status() === 'running') return done()
-          isolatedRepoInstance.fetchAsync()
-          return delay(500)
-            .then(() => statusCheck())
-        }
-        statusCheck()
+        return assertInstanceIsRunning(isolatedRepoInstance)
       })
 
       it('should have a working terminal', () => {
-        let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
-        return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+        return testTerminal(isolatedRepoInstance, /server.*running/i)
       })
     })
   })
@@ -1418,46 +1223,26 @@ describe('9. New Service Containers with custom dockerfile', () => {
   })
 
   describe('Working Container', () => {
-    let socket
-    let container
-    before(() => {
-      socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
-    })
-
     it('should have a dockerContainer', (done) => {
-      let statusCheck = () => {
-        if (keypather.get(repoInstance, 'attrs.container.dockerContainer')) {
-          container = repoInstance.attrs.container
-          return done()
-        }
-        repoInstance.fetchAsync()
-        return delay(500)
-          .then(() => statusCheck())
-      }
-      statusCheck()
+      return assertInstanceHasContainer(repoInstance)
     })
 
     it('should get build logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      const buildContainerId = keypather.get(repoInstance, 'attrs.contextVersion.build.dockerContainer')
-      let testBuildLogs = socketUtils.createTestBuildLogs(socket, buildContainerId)
-      let testCmdLogs = socketUtils.createTestCmdLogs(socket, container, /server.*running/i)
-      return Promise.race([socketUtils.failureHandler(socket), testBuildLogs(), testCmdLogs()])
+      return testBuildLogs(repoInstance)
+    })
+
+    it('should get build logs for that container', function () {
+      if (opts.NO_LOGS) return this.skip()
+      return testCMDLogs(repoInstance, /server.*running/i)
     })
 
     it('should be successfully built', (done) => {
-      let statusCheck = () => {
-        if (repoInstance.status() === 'running') return done()
-        repoInstance.fetchAsync()
-        return delay(500)
-          .then(() => statusCheck())
-      }
-      statusCheck()
+      return assertInstanceIsRunning(repoInstance)
     })
 
     it('should have a working terminal', () => {
-      let testTerminal = socketUtils.createTestTerminal(socket, container, 'sleep 1 && ping -c 1 localhost\n', /from.*127.0.0.1/i)
-      return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+      return testTerminal(repoInstance)
     })
   })
 })
