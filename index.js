@@ -1024,35 +1024,21 @@ describe('6. Isolation', function () {
 
 describe('7. Container To Container DNS', function () {
   if (opts.NO_DNS) this.pending = true
-  //this.retries(5)
-  this.timeout(3000)
-  let socket
-
-  before(() => {
-    socket = socketUtils.createSocketConnection(opts.API_SOCKET_SERVER, client.connectSid)
-  })
+  this.retries(5)
 
   describe('Repo Instance', () => {
     it('should connect to the container from the master branch', function () {
-      let container = repoInstance.attrs.container
-      let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', opts.REPO_CONTAINER_MATCH)
-      return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+      return testTerminal(repoInstance, 'curl localhost\n', opts.REPO_CONTAINER_MATCH)
     })
 
     it('should connect to the container from the newly created branch (if not isolated)', function () {
-      if (opts.ISOLATION || opts.NO_WEBHOOKS) {
-        return Promise.resolve() // Doesn't work for isolation for some reason
-      }
-      let container = repoBranchInstance.attrs.container
-      let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', opts.REPO_CONTAINER_MATCH)
-      return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+      if (opts.ISOLATION || opts.NO_WEBHOOKS) return this.skip()
+      return testTerminal(repoBranchInstance, 'curl localhost\n', opts.REPO_CONTAINER_MATCH)
     })
 
     it('should connect to the isolated container from the isolated branch', function () {
       if (!opts.ISOLATION) return this.skip()
-      let container = isolatedRepoInstance.attrs.container
-      let testTerminal = socketUtils.createTestTerminal(socket, container, 'curl localhost\n', opts.REPO_CONTAINER_MATCH)
-      return Promise.race([socketUtils.failureHandler(socket), testTerminal()])
+      return testTerminal(repoBranchInstance, 'curl localhost\n', opts.REPO_CONTAINER_MATCH)
     })
   })
 
