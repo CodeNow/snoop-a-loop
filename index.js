@@ -720,7 +720,7 @@ describe('5. Github Webhooks', function () {
   })
 
   describe('Working Container', () => {
-    it('should have a container', (done) => {
+    it('should have a container', () => {
       return assertInstanceHasContainer(repoBranchInstance)
     })
 
@@ -907,7 +907,7 @@ describe('6. Isolation', function () {
     })
 
     describe('Working Container', () => {
-      it('should have a dockerContainer', (done) => {
+      it('should have a dockerContainer', () => {
         return assertInstanceHasContainer(repoInstanceForIsolation)
       })
 
@@ -921,7 +921,7 @@ describe('6. Isolation', function () {
         return testCMDLogs(repoInstanceForIsolation, /server.*running/i)
       })
 
-      it('should be successfully built', (done) => {
+      it('should be successfully built', () => {
         return assertInstanceIsRunning(repoInstanceForIsolation)
       })
 
@@ -1223,7 +1223,7 @@ describe('9. New Service Containers with custom dockerfile', () => {
   })
 
   describe('Working Container', () => {
-    it('should have a dockerContainer', (done) => {
+    it('should have a dockerContainer', () => {
       return assertInstanceHasContainer(repoInstance)
     })
 
@@ -1234,10 +1234,10 @@ describe('9. New Service Containers with custom dockerfile', () => {
 
     it('should get build logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      return testCMDLogs(repoInstance, /server.*running/i)
+      return testCMDLogs(repoInstance, /server.*ready/i)
     })
 
-    it('should be successfully built', (done) => {
+    it('should be successfully built', () => {
       return assertInstanceIsRunning(repoInstance)
     })
 
