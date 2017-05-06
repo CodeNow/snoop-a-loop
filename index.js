@@ -6,14 +6,13 @@ const expect = require('chai').expect
 const fs = require('fs')
 const GitHubApi = require('github')
 const keypather = require('keypather')()
-const objectId = require('objectid')
 const Promise = require('bluebird')
 const request = Promise.promisifyAll(require('request'))
 const uuid = require('uuid')
 require('string.prototype.includes');
 
 const PrimusClient = require('@runnable/api-client/lib/external/primus-client')
-const Runnable = require('@runnable/api-client')
+const PrivateRegistry = require('./lib/privateRegistry')
 
 const socketUtils = require('./lib/socket/utils.js')
 const testBuildLogs = socketUtils.testBuildLogs
@@ -30,7 +29,7 @@ const opts = require('./lib/utils/env-arg-parser')
 const DOCKERFILE_BODY = fs.readFileSync('./lib/build/source-dockerfile-body.txt').toString()
 const randInt = Math.floor(Math.random() * 1000)
 
-let client
+let client = require('./lib/client.js')
 
 let serviceInstance
 let repoInstance
@@ -51,10 +50,10 @@ const reqOpts = {
 }
 
 before(() => {
-  client = new Runnable(opts.API_URL, { userContentDomain: opts.USER_CONTENT_DOMAIN })
-  promisifyClientModel(client)
-  return client.githubLoginAsync(opts.ACCESS_TOKEN)
-    .then(() => opts.connectSid = client.connectSid)
+  return promisifyClientModel(client).githubLoginAsync(opts.ACCESS_TOKEN)
+    .then(() => {
+      opts.connectSid = client.connectSid
+    })
 })
 
 after((done) => {
@@ -1230,5 +1229,11 @@ describe('9. New Service Containers with custom dockerfile', () => {
     it('should have a working terminal', () => {
       return testTerminal(repoInstance)
     })
+  })
+})
+
+describe('Private Docker Registry', () => {
+  it('Update registry', () => {
+    return PrivateRegistry.testSetPrivateRegistry()
   })
 })
