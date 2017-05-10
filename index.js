@@ -12,7 +12,7 @@ const uuid = require('uuid')
 require('string.prototype.includes');
 
 const PrimusClient = require('@runnable/api-client/lib/external/primus-client')
-const PrivateRegistry = require('./lib/privateRegistry')
+const PrivateRegistry = require('./lib/private-registry/private-registry')
 
 const socketUtils = require('./lib/socket/utils.js')
 const testBuildLogs = socketUtils.testBuildLogs
@@ -1232,7 +1232,9 @@ describe('9. New Service Containers with custom dockerfile', () => {
   })
 })
 
-describe('Private Docker Registry', () => {
+describe.only('10. Private Docker Registry', function () {
+  if (opts.NO_PRIVATE_REGISTRY) this.pending = true
+
   it('Update registry', () => {
     return PrivateRegistry.testSetPrivateRegistry()
   })
