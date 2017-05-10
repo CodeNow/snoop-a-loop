@@ -1232,7 +1232,7 @@ describe('9. New Service Containers with custom dockerfile', () => {
   })
 })
 
-describe.only('10. Private Docker Registry', function () {
+describe('10. Private Docker Registry', function () {
   if (opts.NO_PRIVATE_REGISTRY) this.pending = true
 
   it('Update registry', () => {
