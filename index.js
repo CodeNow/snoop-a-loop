@@ -569,12 +569,12 @@ describe('3. New Repository Containers created using a mirrored docker file', fu
       return assertInstanceHasContainer(mirroredDockerfileRepoInstance)
     })
 
-    it('should get build logs for that container', () => {
+    it('should get build logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
       return testBuildLogs(mirroredDockerfileRepoInstance)
     })
 
-    it('should get CMD logs for that container', () => {
+    it('should get CMD logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
       return testCMDLogs(mirroredDockerfileRepoInstance, /server.*running/i)
     })
