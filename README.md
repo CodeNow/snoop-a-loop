@@ -12,12 +12,12 @@
 
 ## Setup
 
-1. Go to User->Settings->Personal access tokens add a token
+1. Go to [User->Settings->Personal access tokens](https://github.com/settings/tokens) add a token
 2. Check these permissions on
   * repo (All)
   * admin:org
     * read:org
-  *  admin:public_key (All)
+  * admin:public_key (All)
   * admin:repo_hook
     * read:repo_hook
   * user
