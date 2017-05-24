@@ -10,10 +10,24 @@
 - Containers are deleted before the test is started
 - Tests must be run **in order** and bail if any test fails
 
+## Setup
+
+1. Go to [User->Settings->Personal access tokens](https://github.com/settings/tokens) add a token
+2. Check these permissions on
+  * repo (All)
+  * admin:org
+    * read:org
+  * admin:public_key (All)
+  * admin:repo_hook
+    * read:repo_hook
+  * user
+    * user:email
+3. Generate the token
+
 ## Steps To Run
 
 1. Push your branch to desired environment
-2. Run `npm start`. If testing in another environment other than gamma, pass a arg flag with the env name (`npm start -- --beta`).
+2. Run `npm start -- --auth-token <snoop token>`. If testing in another environment other than gamma, pass a arg flag with the env name (`npm start -- --beta`).
 
 ![screenshot.png](screenshot.png)
 
