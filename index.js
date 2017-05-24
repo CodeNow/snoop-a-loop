@@ -971,7 +971,7 @@ describe('6. Isolation', function () {
     })
 
     describe('Isolated Service Container', () => {
-      it('should have a dockerContainer', (done) => {
+      it('should have a dockerContainer', () => {
         return assertInstanceHasContainer(isolatedServiceInstance)
       })
 
@@ -985,7 +985,7 @@ describe('6. Isolation', function () {
         return testCMDLogs(isolatedServiceInstance, /running.*rethinkdb/i)
       })
 
-      it('should be successfully built', (done) => {
+      it('should be successfully built', () => {
         return assertInstanceIsRunning(isolatedServiceInstance)
       })
 
@@ -995,7 +995,7 @@ describe('6. Isolation', function () {
     })
 
     describe('Isolated Repo Container', () => {
-      it('should have a dockerContainer', (done) => {
+      it('should have a dockerContainer', () => {
         return assertInstanceHasContainer(isolatedRepoInstance)
       })
 
@@ -1009,12 +1009,12 @@ describe('6. Isolation', function () {
         return testCMDLogs(isolatedRepoInstance, /server.*running/i)
       })
 
-      it('should be successfully built', (done) => {
+      it('should be successfully built', () => {
         return assertInstanceIsRunning(isolatedRepoInstance)
       })
 
       it('should have a working terminal', () => {
-        return testTerminal(isolatedRepoInstance, /server.*running/i)
+        return testTerminal(isolatedRepoInstance)
       })
     })
   })
