@@ -673,6 +673,12 @@ describe('5. Github Webhooks', function () {
       })
     })
 
+    it('should update the `locked` property', () => {
+      return repoInstance.updateAsync({
+        locked: false
+      })
+    })
+
     it('should created a new branch', () => {
       let acv = repoInstance.attrs.contextVersion.appCodeVersions[0]
       userName = acv.repo.split('/')[0]
