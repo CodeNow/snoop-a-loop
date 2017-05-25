@@ -23,6 +23,9 @@ const assertInstanceHasContainer = InstanceUtils.assertInstanceHasContainer
 const assertInstanceIsRunning = InstanceUtils.assertInstanceIsRunning
 const promisifyClientModel = require('./lib/utils/promisify-client-model')
 
+const SERVICE_CMD_REGEX = /server.*ready/i
+const REPO_CMD_REGEX = /server.*running/i
+
 // Parse ENVs and passed args
 const opts = require('./lib/utils/env-arg-parser')
 
@@ -181,7 +184,7 @@ describe('1. New Service Containers', () => {
 
     it('should get CMD logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      return testCMDLogs(serviceInstance, /running.*rethinkdb/i)
+      return testCMDLogs(serviceInstance, SERVICE_CMD_REGEX)
     })
 
     it('should be succsefully built', () => {
@@ -369,7 +372,7 @@ describe('2. New Repository Containers', () => {
 
     it('should get CMD logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      return testCMDLogs(repoInstance, /server.*running/i)
+      return testCMDLogs(repoInstance, REPO_CMD_REGEX)
     })
 
     it('should be running', () => {
@@ -576,7 +579,7 @@ describe('3. New Repository Containers created using a mirrored docker file', fu
 
     it('should get CMD logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      return testCMDLogs(mirroredDockerfileRepoInstance, /server.*running/i)
+      return testCMDLogs(mirroredDockerfileRepoInstance, REPO_CMD_REGEX)
     })
 
     it('should be successfully built', () => {
@@ -642,7 +645,7 @@ describe('4. Rebuild Repo Container', function () {
     })
 
     it('should have a working terminal', () => {
-      return testCMDLogs(repoInstance, /server.*running/i)
+      return testCMDLogs(repoInstance, REPO_CMD_REGEX)
     })
   })
 })
@@ -730,7 +733,7 @@ describe('5. Github Webhooks', function () {
 
     it('should get CMD logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-        return testCMDLogs(repoBranchInstance, /server.*running/i)
+        return testCMDLogs(repoBranchInstance, REPO_CMD_REGEX)
     })
 
     it('should be succsefully built', () => {
@@ -917,7 +920,7 @@ describe('6. Isolation', function () {
 
       it('should get CMD logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
-        return testCMDLogs(repoInstanceForIsolation, /server.*running/i)
+        return testCMDLogs(repoInstanceForIsolation, REPO_CMD_REGEX)
       })
 
       it('should be successfully built', () => {
@@ -982,7 +985,7 @@ describe('6. Isolation', function () {
 
       it('should get CMD logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
-        return testCMDLogs(isolatedServiceInstance, /running.*rethinkdb/i)
+        return testCMDLogs(isolatedServiceInstance, SERVICE_CMD_REGEX)
       })
 
       it('should be successfully built', (done) => {
@@ -1006,7 +1009,7 @@ describe('6. Isolation', function () {
 
       it('should get logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
-        return testCMDLogs(isolatedRepoInstance, /server.*running/i)
+        return testCMDLogs(isolatedRepoInstance, REPO_CMD_REGEX)
       })
 
       it('should be successfully built', (done) => {
@@ -1097,6 +1100,7 @@ describe('9. New Service Containers with custom dockerfile', () => {
   let contextVersion
   let contextVersionDockerfile
   let appCodeVersion
+  let customServiceInstance
 
   describe('Create A Container', () => {
     describe('Source Context', () => {
@@ -1199,9 +1203,9 @@ describe('9. New Service Containers with custom dockerfile', () => {
           build: build.id()
         })
           .then((rtn) => {
-            repoInstance = rtn
-            promisifyClientModel(repoInstance)
-            return repoInstance.fetchAsync()
+            customServiceInstance = rtn
+            promisifyClientModel(customServiceInstance)
+            return customServiceInstance.fetchAsync()
           })
       })
     })
@@ -1209,25 +1213,25 @@ describe('9. New Service Containers with custom dockerfile', () => {
 
   describe('Working Container', () => {
     it('should have a dockerContainer', () => {
-      return assertInstanceHasContainer(repoInstance)
+      return assertInstanceHasContainer(customServiceInstance)
     })
 
     it('should get build logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      return testBuildLogs(repoInstance)
+      return testBuildLogs(customServiceInstance)
     })
 
     it('should get build logs for that container', function () {
       if (opts.NO_LOGS) return this.skip()
-      return testCMDLogs(repoInstance, /server.*ready/i)
+      return testCMDLogs(customServiceInstance, SERVICE_CMD_REGEX)
     })
 
     it('should be successfully built', () => {
-      return assertInstanceIsRunning(repoInstance)
+      return assertInstanceIsRunning(customServiceInstance)
     })
 
     it('should have a working terminal', () => {
-      return testTerminal(repoInstance)
+      return testTerminal(customServiceInstance)
     })
   })
 })
