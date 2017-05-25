@@ -25,7 +25,7 @@ module.exports = (config) => {
 
     describe('create new instance requiring ssh keys', () => {
       it('should build and start properly', () => {
-
+        // TODO: implementation
       })
     })
   })
