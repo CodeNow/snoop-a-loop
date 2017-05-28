@@ -58,7 +58,7 @@ module.exports = (config) => {
       })
 
       it('should have a working terminal', () => {
-        return testCMDLogs(common.repoInstance, /server.*running/i)
+        return testCMDLogs(common.repoInstance, common.REPO_CMD_REGEX)
       })
     })
   })

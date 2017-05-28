@@ -1,4 +1,5 @@
 'use strict'
+
 const common = require('../lib/utils/common')
 const InstanceUtils = require('../lib/instance/util.js')
 const Promise = require('bluebird')
@@ -108,7 +109,7 @@ module.exports = (config) => {
 
       it('should get CMD logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
-        return testCMDLogs(serviceInstance, /running.*rethinkdb/i)
+        return testCMDLogs(serviceInstance, common.SERVICE_CMD_REGEX)
       })
 
       it('should be succsefully built', () => {

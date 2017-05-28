@@ -21,7 +21,7 @@ module.exports = (config) => {
     let context
     let contextVersion
     let contextVersionDockerfile
-    let repoInstance
+    let customServiceInstance
     let sourceContext
     let sourceContextVersion
     let sourceInfraCodeVersion
@@ -127,9 +127,9 @@ module.exports = (config) => {
             build: build.id()
           })
             .then((rtn) => {
-              repoInstance = rtn
-              promisifyClientModel(repoInstance)
-              return repoInstance.fetchAsync()
+              customServiceInstance = rtn
+              promisifyClientModel(customServiceInstance)
+              return customServiceInstance.fetchAsync()
             })
         })
       })
@@ -137,25 +137,25 @@ module.exports = (config) => {
 
     describe('Working Container', () => {
       it('should have a dockerContainer', () => {
-        return assertInstanceHasContainer(repoInstance)
+        return assertInstanceHasContainer(customServiceInstance)
       })
 
       it('should get build logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
-        return testBuildLogs(repoInstance)
+        return testBuildLogs(customServiceInstance)
       })
 
       it('should get build logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
-        return testCMDLogs(repoInstance, /server.*ready/i)
+        return testCMDLogs(customServiceInstance, common.SERVICE_CMD_REGEX)
       })
 
       it('should be successfully built', () => {
-        return assertInstanceIsRunning(repoInstance)
+        return assertInstanceIsRunning(customServiceInstance)
       })
 
       it('should have a working terminal', () => {
-        return testTerminal(repoInstance)
+        return testTerminal(customServiceInstance)
       })
     })
   })

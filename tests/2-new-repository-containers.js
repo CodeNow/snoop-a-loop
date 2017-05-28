@@ -195,7 +195,7 @@ module.exports = (config) => {
 
       it('should get CMD logs for that container', function () {
         if (opts.NO_LOGS) return this.skip()
-        return testCMDLogs(repoInstance, /server.*running/i)
+        return testCMDLogs(repoInstance, common.REPO_CMD_REGEX)
       })
 
       it('should be running', () => {
