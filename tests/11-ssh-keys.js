@@ -10,12 +10,10 @@ module.exports = (config) => {
     if (opts.NO_SSH_KEYS) this.pending = true
 
     before(() => {
-      console.log('Finding and deleting old generated ssh keys on github.')
       return sshKeys.cleanupGithubKeys()
     })
 
     after(() => {
-      console.log('Finding and deleting generated ssh keys on github.')
       return sshKeys.cleanupGithubKeys()
     })
 
