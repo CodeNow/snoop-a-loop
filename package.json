@@ -5,8 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "npm start",
-    "start": "./node_modules/mocha/bin/mocha -t 10000 -b index.js --reporter progress",
-    "verbose": "./node_modules/mocha/bin/mocha -t 10000 -b index.js"
+    "start": "./node_modules/mocha/bin/mocha -t 20000 -b index.js --reporter progress",
+    "verbose": "./node_modules/mocha/bin/mocha -t 20000 -b index.js",
+    "lint": "node_modules/.bin/standard"
   },
   "author": "",
   "license": "ISC",
@@ -28,8 +29,27 @@
     "ws": "^1.1.0",
     "yargs": "^4.6.0"
   },
+  "devDependencies": {
+    "dirty-chai": "^1.2.2",
+    "pre-commit": "^1.2.2",
+    "standard": "^10.0.2"
+  },
   "engine": {
     "node": "4.2.2",
     "npm": "4.0.3"
-  }
+  },
+  "standard": {
+    "globals": [
+      "describe",
+      "it",
+      "before",
+      "after",
+      "beforeEach",
+      "afterEach",
+      "xit"
+    ]
+  },
+  "pre-commit": [
+    "lint"
+  ]
 }
