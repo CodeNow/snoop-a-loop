@@ -268,7 +268,7 @@ module.exports = (config) => {
           return testCMDLogs(isolatedServiceInstance, /running.*rethinkdb/i)
         })
 
-        it('should be successfully built', (done) => {
+        it('should be successfully built', () => {
           return assertInstanceIsRunning(isolatedServiceInstance)
         })
 
@@ -278,7 +278,7 @@ module.exports = (config) => {
       })
 
       describe('Isolated Repo Container', () => {
-        it('should have a dockerContainer', (done) => {
+        it('should have a dockerContainer', () => {
           return assertInstanceHasContainer(isolatedRepoInstance)
         })
 
@@ -289,15 +289,15 @@ module.exports = (config) => {
 
         it('should get logs for that container', function () {
           if (opts.NO_LOGS) return this.skip()
-          return testCMDLogs(isolatedRepoInstance, /server.*running/i)
+          return testCMDLogs(isolatedRepoInstance, common.REPO_CMD_REGEX)
         })
 
-        it('should be successfully built', (done) => {
+        it('should be successfully built', () => {
           return assertInstanceIsRunning(isolatedRepoInstance)
         })
 
         it('should have a working terminal', () => {
-          return testTerminal(isolatedRepoInstance, /server.*running/i)
+          return testTerminal(isolatedRepoInstance, common.REPO_CMD_REGEX)
         })
       })
     })
