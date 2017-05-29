@@ -3,6 +3,7 @@ const AuthenticatedRequest = require('../lib/request/authenticated-request.js')
 const common = require('../lib/utils/common')
 const expect = require('chai').expect
 const InstanceUtils = require('../lib/instance/util')
+const Promise = require('bluebird')
 const promisifyClientModel = require('../lib/utils/promisify-client-model')
 const sshKeys = require('../lib/ssh-keys/ssh-keys')
 require('chai').use(require('dirty-chai'))
@@ -45,9 +46,9 @@ module.exports = (config) => {
           method: 'POST',
           uri: opts.API_URL + '/docker-compose-cluster/',
           json: {
-            repo: `${opts.GITHUB_USERNAME}/${opts.SNOOP_SSH_KEYS_REPO_NAME}`,
+            repo: `${opts.GITHUB_USERNAME}/${opts.SNOOP_TESTS_REPO}`,
             branch: 'master',
-            filePath: '/docker-compose.yml',
+            filePath: '/ssh-keys/docker-compose.yml',
             name: `ssh-key-test-${common.randInt}`,
             githubId: opts.GITHUB_OAUTH_ID
           }
