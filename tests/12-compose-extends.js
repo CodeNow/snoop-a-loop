@@ -24,7 +24,7 @@ module.exports = (config) => {
           json: {
             repo: `${opts.GITHUB_USERNAME}/${opts.SNOOP_TESTS_REPO}`,
             branch: 'master',
-            filePath: `/${testPath}/docker-compose.yml`,
+            filePath: 'compose-extends-compose.yml',
             name: `${testPath}-test-${common.randInt}`,
             githubId: opts.GITHUB_OAUTH_ID
           }
@@ -38,12 +38,12 @@ module.exports = (config) => {
                 })
                 .then((instances) => {
                   const foundInstance = instances.models.find((instance) => {
-                    return instance.attrs.name === `${testPath}-tests-${common.randInt}-web`
+                    return instance.attrs.name === `${testPath}-test-${common.randInt}-web`
                   })
                   if (!foundInstance) {
                     return waitForInstance()
                   }
-                  console.log('Instance created', `${testPath}-tests-${common.randInt}-web`)
+                  console.log('Instance created', `${testPath}-test-${common.randInt}-web`)
                   testInstance = promisifyClientModel(foundInstance)
                 })
             }
