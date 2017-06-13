@@ -48,7 +48,7 @@ module.exports = (config) => {
           json: {
             repo: `${opts.GITHUB_USERNAME}/${opts.SNOOP_TESTS_REPO}`,
             branch: 'master',
-            filePath: '/ssh-keys/docker-compose.yml',
+            filePath: '/ssh-keys-compose.yml',
             name: `ssh-key-test-${common.randInt}`,
             githubId: opts.GITHUB_OAUTH_ID
           }
@@ -79,7 +79,8 @@ module.exports = (config) => {
         return sshKeysInstance.destroyAsync()
       })
 
-      it('should build and start properly', () => {
+      it('should build and start properly', function () {
+        this.timeout(50000)
         return InstanceUtils.assertInstanceIsRunning(sshKeysInstance)
       })
     })
