@@ -1,45 +1,21 @@
 'use strict'
 const AuthenticatedRequest = require('../lib/request/authenticated-request.js')
 const common = require('../lib/utils/common')
-const expect = require('chai').expect
 const InstanceUtils = require('../lib/instance/util')
 const Promise = require('bluebird')
 const promisifyClientModel = require('../lib/utils/promisify-client-model')
-const sshKeys = require('../lib/ssh-keys/ssh-keys')
 require('chai').use(require('dirty-chai'))
 
 module.exports = (config) => {
   const opts = config.opts
   const client = config.client
 
-  describe('11. SSH Keys', function () {
-    if (opts.NO_SSH_KEYS) this.pending = true
+  describe('Compose Extends', function () {
+    if (opts.NO_COMPOSE_EXTENDS) this.pending = true
 
-    before(() => {
-      return sshKeys.cleanupGithubKeys()
-    })
-
-    after(() => {
-      return sshKeys.cleanupGithubKeys()
-    })
-
-    describe('create ssh key using api', () => {
-      it('should return successful', () => {
-        return sshKeys.createRunnableKey()
-      })
-      it('should return keys when fetched from the API', () => {
-        return sshKeys.getRunnableSSHKeys()
-          .then((keys) => {
-            const key = keys.find((key) => {
-              return key.keyName.endsWith(opts.GITHUB_USERNAME)
-            })
-            expect(key, 'ssh key').to.exist()
-          })
-      })
-    })
-
-    describe('create new instance requiring ssh keys', () => {
-      let sshKeysInstance
+    describe('create new instance from a compose file with extends', () => {
+      let testInstance
+      let testPath = 'compose-extends'
       before(function () {
         this.timeout(50000)
         const myParams = {
@@ -48,8 +24,8 @@ module.exports = (config) => {
           json: {
             repo: `${opts.GITHUB_USERNAME}/${opts.SNOOP_TESTS_REPO}`,
             branch: 'master',
-            filePath: '/ssh-keys-compose.yml',
-            name: `ssh-key-test-${common.randInt}`,
+            filePath: 'compose-extends-compose.yml',
+            name: `${testPath}-test-${common.randInt}`,
             githubId: opts.GITHUB_OAUTH_ID
           }
         }
@@ -62,13 +38,13 @@ module.exports = (config) => {
                 })
                 .then((instances) => {
                   const foundInstance = instances.models.find((instance) => {
-                    return instance.attrs.name === `ssh-key-test-${common.randInt}-web`
+                    return instance.attrs.name === `${testPath}-test-${common.randInt}-web`
                   })
                   if (!foundInstance) {
                     return waitForInstance()
                   }
-                  console.log('Instance created', `ssh-key-test-${common.randInt}-web`)
-                  sshKeysInstance = promisifyClientModel(foundInstance)
+                  console.log('Instance created', `${testPath}-test-${common.randInt}-web`)
+                  testInstance = promisifyClientModel(foundInstance)
                 })
             }
             return waitForInstance()
@@ -76,12 +52,11 @@ module.exports = (config) => {
       })
 
       after(() => {
-        return sshKeysInstance.destroyAsync()
+        return testInstance.destroyAsync()
       })
 
-      it('should build and start properly', function () {
-        this.timeout(50000)
-        return InstanceUtils.assertInstanceIsRunning(sshKeysInstance)
+      it('should build and start properly', () => {
+        return InstanceUtils.assertInstanceIsRunning(testInstance)
       })
     })
   })
