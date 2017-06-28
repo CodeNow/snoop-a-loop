@@ -1,6 +1,5 @@
 'use strict'
 const AuthenticatedRequest = require('../lib/request/authenticated-request.js')
-const common = require('../lib/utils/common')
 const InstanceUtils = require('../lib/instance/util')
 const Promise = require('bluebird')
 const promisifyClientModel = require('../lib/utils/promisify-client-model')
@@ -28,7 +27,6 @@ module.exports = (config) => {
             repo: `${opts.GITHUB_USERNAME}/${opts.SNOOP_TESTS_REPO}`,
             branch: 'master',
             filePath: `${testPath}-compose.yml`,
-            name: `${testPath}-test-${common.randInt}`,
             githubId: opts.GITHUB_OAUTH_ID
           }
         }
@@ -41,8 +39,8 @@ module.exports = (config) => {
                 })
                 .then((instances) => {
                   let foundInstances = []
-                  let instanceName = `${testPath}-test-${common.randInt}-${serviceName}`
-                  let instanceName2 = `${testPath}-test-${common.randInt}-${serviceName2}`
+                  let instanceName = `${serviceName}`
+                  let instanceName2 = `${serviceName2}`
                   instances.models.forEach((instance) => {
                     if (instance.attrs.name.indexOf(instanceName) > 0 || instance.attrs.name.indexOf(instanceName2) > 0) {
                       foundInstances.push(instance)
@@ -70,7 +68,7 @@ module.exports = (config) => {
       })
 
       it('should build and start properly for all instances', () => {
-        return Promise.all(testInstances.forEach((instance) => {
+        return Promise.all(testInstances.map((instance) => {
           return InstanceUtils.assertInstanceIsRunning(instance)
         }))
       })
