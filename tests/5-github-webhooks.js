@@ -8,6 +8,7 @@ const promisifyClientModel = require('../lib/utils/promisify-client-model')
 const expect = require('chai').expect
 const socketUtils = require('../lib/socket/utils.js')
 require('chai').use(require('dirty-chai'))
+const regexpQuote = require('regexp-quote')
 
 const assertInstanceHasContainer = InstanceUtils.assertInstanceHasContainer
 const assertInstanceIsRunning = InstanceUtils.assertInstanceIsRunning
@@ -21,6 +22,24 @@ module.exports = (config) => {
 
   describe('5. Github Webhooks', function () {
     if (opts.NO_WEBHOOKS) this.pending = true
+
+    before(() => {
+      if (!common.repoInstance) {
+        return client.fetchInstancesAsync({
+          githubUsername: opts.GITHUB_USERNAME
+        })
+        .then((allInstances) => {
+          const regex = new RegExp(regexpQuote(opts.GITHUB_REPO_NAME) + '-\\d+')
+          return allInstances.models.find((instance) => {
+            return regex.test(instance.attrs.name)
+          })
+        })
+        .then((instance) => {
+          common.repoInstance = instance
+          promisifyClientModel(common.repoInstance)
+        })
+      }
+    })
 
     let branchName = 'test-branch-' + (new Date().getTime())
     let github
@@ -51,15 +70,16 @@ module.exports = (config) => {
         return Promise.fromCallback((cb) => {
           github.repos.getCommits({
             repo: repoName,
-            user: userName
+            owner: userName
           }, cb)
         })
+          .get('data')
           .then((commits) => {
             let lastCommitSha = commits[ 0 ].sha
             return Promise.fromCallback((cb) => {
               github.gitdata.createReference({
                 repo: repoName,
-                user: userName,
+                owner: userName,
                 ref: refName,
                 sha: lastCommitSha
               }, cb)

@@ -7,6 +7,7 @@ const Promise = require('bluebird')
 const promisifyClientModel = require('../lib/utils/promisify-client-model')
 const socketUtils = require('../lib/socket/utils.js')
 const uuid = require('uuid')
+const regexpQuote = require('regexp-quote')
 
 const assertInstanceHasContainer = InstanceUtils.assertInstanceHasContainer
 const assertInstanceIsRunning = InstanceUtils.assertInstanceIsRunning
@@ -28,6 +29,39 @@ module.exports = (config) => {
     if (!opts.ISOLATION) this.pending = true
     let repoInstanceForIsolation
 
+    before(() => {
+      if (!common.repoInstance) {
+        return client.fetchInstancesAsync({
+          githubUsername: opts.GITHUB_USERNAME
+        })
+          .then((allInstances) => {
+            const regex = new RegExp(regexpQuote(opts.GITHUB_REPO_NAME) + '-\\d+')
+            return allInstances.models.find((instance) => {
+              return regex.test(instance.attrs.name)
+            })
+          })
+          .then((instance) => {
+            common.repoInstance = instance
+            promisifyClientModel(common.repoInstance)
+          })
+      }
+    })
+    before(() => {
+      if (!common.serviceInstance) {
+        return client.fetchInstancesAsync({
+          githubUsername: opts.GITHUB_USERNAME
+        })
+          .then((allInstances) => {
+            return allInstances.models.find((instance) => {
+              return instance.attrs.name === opts.SERVICE_NAME
+            })
+          })
+          .then((instance) => {
+            common.serviceInstance = instance
+            promisifyClientModel(common.serviceInstance)
+          })
+      }
+    })
     describe('Create Container To Isolate', () => {
       let githubOrg
       let githubRepo
@@ -254,7 +288,7 @@ module.exports = (config) => {
       })
 
       describe('Isolated Service Container', () => {
-        it('should have a dockerContainer', (done) => {
+        it('should have a dockerContainer', () => {
           return assertInstanceHasContainer(isolatedServiceInstance)
         })
 
@@ -297,7 +331,7 @@ module.exports = (config) => {
         })
 
         it('should have a working terminal', () => {
-          return testTerminal(isolatedRepoInstance, common.REPO_CMD_REGEX)
+          return testTerminal(isolatedRepoInstance)
         })
       })
     })
